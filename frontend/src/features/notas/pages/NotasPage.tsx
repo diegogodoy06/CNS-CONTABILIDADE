@@ -69,7 +69,7 @@ const mockNotas: NotaFiscal[] = [
       tipo: 'pj',
       documento: '12345678000190',
       razaoSocial: 'Tech Solutions LTDA',
-      endereco: { cep: '01310100', logradouro: 'Av Paulista', numero: '1000', bairro: 'Bela Vista', cidade: 'SÃ£o Paulo', uf: 'SP', codigoMunicipio: '3550308' },
+      endereco: { cep: '01310100', logradouro: 'Av Paulista', numero: '1000', bairro: 'Bela Vista', cidade: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
       email: 'contato@techsolutions.com.br',
       ativo: true,
       totalNotas: 15,
@@ -82,7 +82,7 @@ const mockNotas: NotaFiscal[] = [
     tributos: { iss: { aliquota: 5, valor: 225, retido: false, exigibilidade: 'normal' } },
     dataEmissao: '2024-12-10',
     dataCompetencia: '12/2024',
-    localPrestacao: { municipio: 'SÃ£o Paulo', uf: 'SP', codigoMunicipio: '3550308' },
+    localPrestacao: { municipio: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
     protocoloPrefeitura: 'SP2024121000001',
     codigoVerificacao: 'ABC123DEF',
     createdAt: '2024-12-10T10:30:00',
@@ -99,7 +99,7 @@ const mockNotas: NotaFiscal[] = [
       tipo: 'pj',
       documento: '98765432000110',
       razaoSocial: 'Consultoria Alpha S.A',
-      endereco: { cep: '04543011', logradouro: 'Av Faria Lima', numero: '2000', bairro: 'Itaim Bibi', cidade: 'SÃ£o Paulo', uf: 'SP', codigoMunicipio: '3550308' },
+      endereco: { cep: '04543011', logradouro: 'Av Faria Lima', numero: '2000', bairro: 'Itaim Bibi', cidade: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
       email: 'contato@alpha.com.br',
       ativo: true,
       totalNotas: 8,
@@ -112,7 +112,7 @@ const mockNotas: NotaFiscal[] = [
     tributos: { iss: { aliquota: 5, valor: 100, retido: false, exigibilidade: 'normal' } },
     dataEmissao: '2024-12-08',
     dataCompetencia: '12/2024',
-    localPrestacao: { municipio: 'SÃ£o Paulo', uf: 'SP', codigoMunicipio: '3550308' },
+    localPrestacao: { municipio: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
     protocoloPrefeitura: 'SP2024120800002',
     codigoVerificacao: 'XYZ789ABC',
     createdAt: '2024-12-08T14:20:00',
@@ -127,8 +127,8 @@ const mockNotas: NotaFiscal[] = [
       id: '3',
       tipo: 'pf',
       documento: '12345678901',
-      nome: 'JoÃ£o Silva',
-      endereco: { cep: '01310100', logradouro: 'Rua Augusta', numero: '500', bairro: 'ConsolaÃ§Ã£o', cidade: 'SÃ£o Paulo', uf: 'SP', codigoMunicipio: '3550308' },
+      nome: 'João Silva',
+      endereco: { cep: '01310100', logradouro: 'Rua Augusta', numero: '500', bairro: 'Consolação', cidade: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
       email: 'joao@email.com',
       ativo: true,
       totalNotas: 3,
@@ -136,11 +136,11 @@ const mockNotas: NotaFiscal[] = [
       createdAt: '2024-06-01',
       updatedAt: '2024-12-01',
     },
-    servico: { descricao: 'ManutenÃ§Ã£o de Website', cnae: '6201501', codigoTributacaoMunicipal: '1.01' },
+    servico: { descricao: 'Manutenção de Website', cnae: '6201501', codigoTributacaoMunicipal: '1.01' },
     valores: { valorServico: 850, baseCalculo: 850, valorLiquido: 850 },
     tributos: { iss: { aliquota: 5, valor: 42.5, retido: true, exigibilidade: 'normal' } },
     dataCompetencia: '12/2024',
-    localPrestacao: { municipio: 'SÃ£o Paulo', uf: 'SP', codigoMunicipio: '3550308' },
+    localPrestacao: { municipio: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
     createdAt: '2024-12-05T09:15:00',
     updatedAt: '2024-12-05T09:15:00',
   },
@@ -155,7 +155,7 @@ const mockNotas: NotaFiscal[] = [
       tipo: 'pj',
       documento: '55566677000188',
       razaoSocial: 'Startup Digital ME',
-      endereco: { cep: '04547004', logradouro: 'Rua Funchal', numero: '418', bairro: 'Vila OlÃ­mpia', cidade: 'SÃ£o Paulo', uf: 'SP', codigoMunicipio: '3550308' },
+      endereco: { cep: '04547004', logradouro: 'Rua Funchal', numero: '418', bairro: 'Vila Olímpia', cidade: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
       email: 'contato@startup.com.br',
       ativo: true,
       totalNotas: 5,
@@ -168,7 +168,7 @@ const mockNotas: NotaFiscal[] = [
     tributos: { iss: { aliquota: 5, valor: 160, retido: false, exigibilidade: 'normal' } },
     dataEmissao: '2024-12-01',
     dataCompetencia: '12/2024',
-    localPrestacao: { municipio: 'SÃ£o Paulo', uf: 'SP', codigoMunicipio: '3550308' },
+    localPrestacao: { municipio: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
     protocoloPrefeitura: 'SP2024120100004',
     createdAt: '2024-12-01T11:30:00',
     updatedAt: '2024-12-02T16:00:00',
@@ -192,7 +192,7 @@ const formatCurrency = (value: number): string => {
 const mockTomadores: Partial<Tomador>[] = [
   { id: '1', tipo: 'pj', documento: '12345678000190', razaoSocial: 'Tech Solutions LTDA' },
   { id: '2', tipo: 'pj', documento: '98765432000110', razaoSocial: 'Consultoria Alpha S.A' },
-  { id: '3', tipo: 'pf', documento: '12345678901', nome: 'JoÃ£o Silva' },
+  { id: '3', tipo: 'pf', documento: '12345678901', nome: 'João Silva' },
 ];
 
 const NotasPage: React.FC = () => {
@@ -236,7 +236,7 @@ const NotasPage: React.FC = () => {
     setSelectedNota(null);
   };
 
-  const steps = ['Tomador', 'ServiÃ§o', 'RevisÃ£o'];
+  const steps = ['Tomador', 'Serviço', 'Revisão'];
 
   return (
     <Box sx={{ maxWidth: 1400, mx: 'auto' }}>
@@ -247,7 +247,7 @@ const NotasPage: React.FC = () => {
             Notas Fiscais
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            EmissÃ£o e gestÃ£o de NFS-e
+            Emissão e gestão de NFS-e
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
@@ -276,7 +276,7 @@ const NotasPage: React.FC = () => {
                 {mockNotas.filter(n => n.status === 'emitida').length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Emitidas este mÃªs
+                Emitidas este mês
               </Typography>
             </CardContent>
           </Card>
@@ -312,7 +312,7 @@ const NotasPage: React.FC = () => {
                 {formatCurrency(mockNotas.filter(n => n.status === 'emitida').reduce((sum, n) => sum + n.tributos.iss.valor, 0))}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                ISS do perÃ­odo
+                ISS do período
               </Typography>
             </CardContent>
           </Card>
@@ -354,7 +354,7 @@ const NotasPage: React.FC = () => {
           {/* Search Bar */}
           <Box sx={{ mb: 3 }}>
             <TextField
-              placeholder="Buscar por nÃºmero, tomador..."
+              placeholder="Buscar por número, tomador..."
               size="small"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -374,12 +374,12 @@ const NotasPage: React.FC = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>NÃºmero</TableCell>
+                  <TableCell>número</TableCell>
                   <TableCell>Tomador</TableCell>
                   <TableCell>Valor</TableCell>
-                  <TableCell>Data EmissÃ£o</TableCell>
+                  <TableCell>Data Emissão</TableCell>
                   <TableCell>Status</TableCell>
-                  <TableCell align="right">AÃ§Ãµes</TableCell>
+                  <TableCell align="right">Ações</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -389,10 +389,10 @@ const NotasPage: React.FC = () => {
                     <TableRow key={nota.id} hover>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {nota.numero ? `#${nota.numero}` : 'Sem nÃºmero'}
+                          {nota.numero ? `#${nota.numero}` : 'Sem número'}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          SÃ©rie {nota.serie}
+                          Série {nota.serie}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -423,7 +423,7 @@ const NotasPage: React.FC = () => {
                           </>
                         ) : (
                           <Typography variant="body2" color="text.secondary">
-                            NÃ£o emitida
+                            Não emitida
                           </Typography>
                         )}
                       </TableCell>
@@ -469,7 +469,7 @@ const NotasPage: React.FC = () => {
               setRowsPerPage(parseInt(e.target.value, 10));
               setPage(0);
             }}
-            labelRowsPerPage="Itens por pÃ¡gina"
+            labelRowsPerPage="Itens por página"
             labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
           />
         </CardContent>
@@ -581,29 +581,29 @@ const NotasPage: React.FC = () => {
           {activeStep === 1 && (
             <Box>
               <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-                Dados do ServiÃ§o
+                Dados do Serviço
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="DescriÃ§Ã£o do ServiÃ§o"
+                    label="Descrição do Serviço"
                     multiline
                     rows={3}
-                    placeholder="Descreva o serviÃ§o prestado..."
+                    placeholder="Descreva o Serviço prestado..."
                   />
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <TextField fullWidth label="Valor do ServiÃ§o" placeholder="R$ 0,00" />
+                  <TextField fullWidth label="Valor do Serviço" placeholder="R$ 0,00" />
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <TextField fullWidth label="CNAE" placeholder="Ex: 6201-5/01" />
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <TextField fullWidth label="CÃ³digo TributaÃ§Ã£o Municipal" placeholder="Ex: 1.01" />
+                  <TextField fullWidth label="Código Tributação Municipal" placeholder="Ex: 1.01" />
                 </Grid>
                 <Grid item xs={12} md={6}>
-                  <TextField fullWidth label="CompetÃªncia" defaultValue="12/2024" />
+                  <TextField fullWidth label="Competência" defaultValue="12/2024" />
                 </Grid>
               </Grid>
             </Box>
@@ -612,7 +612,7 @@ const NotasPage: React.FC = () => {
           {activeStep === 2 && (
             <Box>
               <Alert severity="info" sx={{ mb: 3 }}>
-                Revise os dados antes de emitir. ApÃ³s a emissÃ£o, a nota sÃ³ poderÃ¡ ser cancelada dentro do prazo legal.
+                Revise os dados antes de emitir. Após a Emissão, a nota só poderá¡ ser cancelada dentro do prazo legal.
               </Alert>
               
               <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
@@ -629,7 +629,7 @@ const NotasPage: React.FC = () => {
 
               <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  ServiÃ§o
+                  Serviço
                 </Typography>
                 <Typography variant="body2">
                   Desenvolvimento de Software
@@ -677,7 +677,7 @@ const NotasPage: React.FC = () => {
                   variant="contained"
                   onClick={() => setActiveStep((prev) => prev + 1)}
                 >
-                  PrÃ³ximo
+                  Próximo
                 </Button>
               )}
             </Box>
@@ -689,3 +689,6 @@ const NotasPage: React.FC = () => {
 };
 
 export default NotasPage;
+
+
+

@@ -226,12 +226,12 @@ const GuiasPage: React.FC = () => {
             Guias de Impostos
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Controle de pagamentos e obrigaÃ§Ãµes fiscais
+            Controle de pagamentos e obrigações fiscais
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Button variant="outlined" startIcon={<CalendarToday />}>
-            CalendÃ¡rio
+            Calendário
           </Button>
           <Button variant="outlined" startIcon={<FilterList />}>
             Filtrar
@@ -243,7 +243,7 @@ const GuiasPage: React.FC = () => {
       {totalVencido > 0 && (
         <Alert severity="error" sx={{ mb: 3 }} icon={<Warning />}>
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            VocÃª tem guias vencidas totalizando {formatCurrency(totalVencido)}. Regularize para evitar multas e juros.
+            Você tem guias vencidas totalizando {formatCurrency(totalVencido)}. Regularize para evitar multas e juros.
           </Typography>
         </Alert>
       )}
@@ -251,7 +251,7 @@ const GuiasPage: React.FC = () => {
       {proximasVencer > 0 && (
         <Alert severity="warning" sx={{ mb: 3 }}>
           <Typography variant="body2">
-            {proximasVencer} guia(s) com vencimento nos prÃ³ximos 7 dias.
+            {proximasVencer} guia(s) com vencimento nos próximos 7 dias.
           </Typography>
         </Alert>
       )}
@@ -303,7 +303,7 @@ const GuiasPage: React.FC = () => {
                 {mockGuias.filter(g => g.status === 'paga').length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Pagas este mÃªs
+                Pagas este mês
               </Typography>
             </CardContent>
           </Card>
@@ -342,7 +342,7 @@ const GuiasPage: React.FC = () => {
           {/* Search Bar */}
           <Box sx={{ mb: 3 }}>
             <TextField
-              placeholder="Buscar por tipo, competÃªncia..."
+              placeholder="Buscar por tipo, competência..."
               size="small"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -363,11 +363,11 @@ const GuiasPage: React.FC = () => {
               <TableHead>
                 <TableRow>
                   <TableCell>Tipo</TableCell>
-                  <TableCell>CompetÃªncia</TableCell>
+                  <TableCell>Competência</TableCell>
                   <TableCell>Vencimento</TableCell>
                   <TableCell>Valor</TableCell>
                   <TableCell>Status</TableCell>
-                  <TableCell align="right">AÃ§Ãµes</TableCell>
+                  <TableCell align="right">Ações</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -419,10 +419,10 @@ const GuiasPage: React.FC = () => {
                               {daysUntil === 0
                                 ? 'Vence hoje!'
                                 : daysUntil === 1
-                                ? 'Vence amanhÃ£'
+                                ? 'Vence amanhã'
                                 : daysUntil > 0
                                 ? `Em ${daysUntil} dias`
-                                : `${Math.abs(daysUntil)} dias atrÃ¡s`}
+                                : `${Math.abs(daysUntil)} dias atrás`}
                             </Typography>
                           )}
                           {guia.status === 'paga' && guia.dataPagamento && (
@@ -479,7 +479,7 @@ const GuiasPage: React.FC = () => {
               setRowsPerPage(parseInt(e.target.value, 10));
               setPage(0);
             }}
-            labelRowsPerPage="Itens por pÃ¡gina"
+            labelRowsPerPage="Itens por página"
             labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
           />
         </CardContent>
@@ -577,7 +577,7 @@ const GuiasPage: React.FC = () => {
                   Arraste o comprovante ou clique para selecionar
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  PDF, JPG ou PNG atÃ© 5MB
+                  PDF, JPG ou PNG até 5MB
                 </Typography>
               </Box>
             )}

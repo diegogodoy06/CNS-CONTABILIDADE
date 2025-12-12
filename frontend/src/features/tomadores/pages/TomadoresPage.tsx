@@ -67,7 +67,7 @@ const mockTomadores: Tomador[] = [
       numero: '1000',
       complemento: 'Sala 1001',
       bairro: 'Bela Vista',
-      cidade: 'SÃ£o Paulo',
+      cidade: 'São Paulo',
       uf: 'SP',
       codigoMunicipio: '3550308',
     },
@@ -92,7 +92,7 @@ const mockTomadores: Tomador[] = [
       numero: '2000',
       complemento: 'Andar 15',
       bairro: 'Itaim Bibi',
-      cidade: 'SÃ£o Paulo',
+      cidade: 'São Paulo',
       uf: 'SP',
       codigoMunicipio: '3550308',
     },
@@ -108,14 +108,14 @@ const mockTomadores: Tomador[] = [
     id: '3',
     tipo: 'pf',
     documento: '12345678901',
-    nome: 'JoÃ£o Carlos Silva',
+    nome: 'João Carlos Silva',
     endereco: {
       cep: '01310100',
       logradouro: 'Rua Augusta',
       numero: '500',
       complemento: 'Apto 42',
-      bairro: 'ConsolaÃ§Ã£o',
-      cidade: 'SÃ£o Paulo',
+      bairro: 'Consolação',
+      cidade: 'São Paulo',
       uf: 'SP',
       codigoMunicipio: '3550308',
     },
@@ -137,8 +137,8 @@ const mockTomadores: Tomador[] = [
       cep: '04547004',
       logradouro: 'Rua Funchal',
       numero: '418',
-      bairro: 'Vila OlÃ­mpia',
-      cidade: 'SÃ£o Paulo',
+      bairro: 'Vila Olímpia',
+      cidade: 'São Paulo',
       uf: 'SP',
       codigoMunicipio: '3550308',
     },
@@ -157,7 +157,7 @@ const mockTomadores: Tomador[] = [
     nome: 'Maria Fernanda Costa',
     endereco: {
       cep: '22041080',
-      logradouro: 'Av AtlÃ¢ntica',
+      logradouro: 'Av Atlântica',
       numero: '1500',
       complemento: 'Cobertura',
       bairro: 'Copacabana',
@@ -218,8 +218,8 @@ const TomadoresPage: React.FC = () => {
 
   const tabs = [
     { label: 'Todos', count: mockTomadores.length },
-    { label: 'Pessoa JurÃ­dica', count: mockTomadores.filter(t => t.tipo === 'pj').length },
-    { label: 'Pessoa FÃ­sica', count: mockTomadores.filter(t => t.tipo === 'pf').length },
+    { label: 'Pessoa Jurídica', count: mockTomadores.filter(t => t.tipo === 'pj').length },
+    { label: 'Pessoa Física', count: mockTomadores.filter(t => t.tipo === 'pf').length },
     { label: 'Inativos', count: mockTomadores.filter(t => !t.ativo).length },
   ];
 
@@ -314,7 +314,7 @@ const TomadoresPage: React.FC = () => {
             Tomadores
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Cadastro de clientes para emissÃ£o de notas fiscais
+            Cadastro de clientes para emissão de notas fiscais
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
@@ -355,7 +355,7 @@ const TomadoresPage: React.FC = () => {
                 {mockTomadores.filter(t => t.tipo === 'pj').length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Pessoa JurÃ­dica
+                Pessoa Jurídica
               </Typography>
             </CardContent>
           </Card>
@@ -367,7 +367,7 @@ const TomadoresPage: React.FC = () => {
                 {mockTomadores.filter(t => t.tipo === 'pf').length}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Pessoa FÃ­sica
+                Pessoa Física
               </Typography>
             </CardContent>
           </Card>
@@ -444,7 +444,7 @@ const TomadoresPage: React.FC = () => {
                   <TableCell>Notas Emitidas</TableCell>
                   <TableCell>Faturamento</TableCell>
                   <TableCell>Status</TableCell>
-                  <TableCell align="right">AÃ§Ãµes</TableCell>
+                  <TableCell align="right">Ações</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -532,7 +532,7 @@ const TomadoresPage: React.FC = () => {
               setRowsPerPage(parseInt(e.target.value, 10));
               setPage(0);
             }}
-            labelRowsPerPage="Itens por pÃ¡gina"
+            labelRowsPerPage="Itens por página"
             labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
           />
         </CardContent>
@@ -588,8 +588,8 @@ const TomadoresPage: React.FC = () => {
                     label="Tipo de Pessoa"
                     onChange={handleTipoChange}
                   >
-                    <MenuItem value="pj">Pessoa JurÃ­dica</MenuItem>
-                    <MenuItem value="pf">Pessoa FÃ­sica</MenuItem>
+                    <MenuItem value="pj">Pessoa Jurídica</MenuItem>
+                    <MenuItem value="pf">Pessoa Física</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -623,7 +623,7 @@ const TomadoresPage: React.FC = () => {
                   <Grid item xs={12} md={8}>
                     <TextField
                       fullWidth
-                      label="RazÃ£o Social"
+                      label="Razão Social"
                       value={formData.razaoSocial}
                       onChange={(e) => setFormData({ ...formData, razaoSocial: e.target.value })}
                       disabled={dialogMode === 'view'}
@@ -641,7 +641,7 @@ const TomadoresPage: React.FC = () => {
                   <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
-                      label="InscriÃ§Ã£o Municipal"
+                      label="Inscrição Municipal"
                       value={formData.inscricaoMunicipal}
                       onChange={(e) => setFormData({ ...formData, inscricaoMunicipal: e.target.value })}
                       disabled={dialogMode === 'view'}
@@ -650,7 +650,7 @@ const TomadoresPage: React.FC = () => {
                   <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
-                      label="InscriÃ§Ã£o Estadual"
+                      label="Inscrição Estadual"
                       value={formData.inscricaoEstadual}
                       onChange={(e) => setFormData({ ...formData, inscricaoEstadual: e.target.value })}
                       disabled={dialogMode === 'view'}
@@ -696,7 +696,7 @@ const TomadoresPage: React.FC = () => {
               <Grid item xs={12} md={2}>
                 <TextField
                   fullWidth
-                  label="NÃºmero"
+                  label="Número"
                   value={formData.numero}
                   onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
                   disabled={dialogMode === 'view'}
@@ -783,3 +783,5 @@ const TomadoresPage: React.FC = () => {
 };
 
 export default TomadoresPage;
+
+
