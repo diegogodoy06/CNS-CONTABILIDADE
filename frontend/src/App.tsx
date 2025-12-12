@@ -18,6 +18,7 @@ const RecuperarSenhaPage = lazy(() => import('./features/auth/pages/RecuperarSen
 const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPage'));
 const DocumentsPage = lazy(() => import('./features/documents/pages/DocumentsPage'));
 const NotasPage = lazy(() => import('./features/notas/pages/NotasPage'));
+const EmitirNotaPage = lazy(() => import('./features/notas/pages/EmitirNotaPage'));
 const GuiasPage = lazy(() => import('./features/guias/pages/GuiasPage'));
 const TomadoresPage = lazy(() => import('./features/tomadores/pages/TomadoresPage'));
 const CalendarioPage = lazy(() => import('./features/calendario/pages/CalendarioPage'));
@@ -136,6 +137,7 @@ const AppContent: React.FC = () => {
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="documentos" element={<DocumentsPage />} />
                 <Route path="notas" element={<NotasPage />} />
+                <Route path="notas/emitir" element={<EmitirNotaPage />} />
                 <Route path="guias" element={<GuiasPage />} />
                 <Route path="tomadores" element={<TomadoresPage />} />
                 <Route path="calendario" element={<CalendarioPage />} />

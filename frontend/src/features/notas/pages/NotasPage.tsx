@@ -1,4 +1,5 @@
 ﻿import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -196,6 +197,7 @@ const mockTomadores: Partial<Tomador>[] = [
 ];
 
 const NotasPage: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
@@ -260,7 +262,7 @@ const NotasPage: React.FC = () => {
           <Button
             variant="contained"
             startIcon={<Add />}
-            onClick={() => setEmitirDialogOpen(true)}
+            onClick={() => navigate('/notas/emitir')}
           >
             Emitir Nota
           </Button>
