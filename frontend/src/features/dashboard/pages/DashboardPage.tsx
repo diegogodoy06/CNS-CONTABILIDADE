@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Card,
@@ -12,22 +12,36 @@ import {
   LinearProgress,
   alpha,
   useTheme,
+  Tabs,
+  Tab,
+  Tooltip,
 } from '@mui/material';
 import {
   Receipt,
   Payment,
   AccountBalance,
   TrendingUp,
+  TrendingDown,
   ArrowForward,
   Add,
   Warning,
-  MoreVert,
   CalendarMonth,
   FileDownload,
+  Refresh,
+  Settings,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../../../store/hooks';
 import type { RootState } from '../../../store';
+
+// Componentes do Dashboard
+import {
+  GraficoFaturamento,
+  GraficoImpostos,
+  CentralNotificacoes,
+  DocumentosRecentesWidget,
+  AtalhosRapidosFAB,
+} from '../components';
 
 // Card Header Component
 interface CardHeaderProps {
@@ -44,42 +58,45 @@ const DashboardCardHeader: React.FC<CardHeaderProps> = ({
   subtitle,
   action,
   color = 'primary.main',
-}) => (
-  <Box
-    sx={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      p: 2,
-      borderBottom: '1px solid',
-      borderColor: 'divider',
-      bgcolor: alpha('#0066CC', 0.03),
-    }}
-  >
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-      <Avatar
-        sx={{
-          bgcolor: color,
-          width: 40,
-          height: 40,
-        }}
-      >
-        {icon}
-      </Avatar>
-      <Box>
-        <Typography variant="subtitle1" fontWeight={600}>
-          {title}
-        </Typography>
-        {subtitle && (
-          <Typography variant="caption" color="text.secondary">
-            {subtitle}
+}) => {
+  const theme = useTheme();
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        p: 2,
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        bgcolor: alpha(theme.palette.primary.main, 0.03),
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <Avatar
+          sx={{
+            bgcolor: color,
+            width: 40,
+            height: 40,
+          }}
+        >
+          {icon}
+        </Avatar>
+        <Box>
+          <Typography variant="subtitle1" fontWeight={600}>
+            {title}
           </Typography>
-        )}
+          {subtitle && (
+            <Typography variant="caption" color="text.secondary">
+              {subtitle}
+            </Typography>
+          )}
+        </Box>
       </Box>
+      {action}
     </Box>
-    {action}
-  </Box>
-);
+  );
+};
 
 // Stats Item Component
 interface StatItemProps {
@@ -88,27 +105,38 @@ interface StatItemProps {
   sublabel?: string;
   icon?: React.ReactNode;
   color?: string;
+  trend?: { value: number; positive: boolean };
 }
 
 const StatItem: React.FC<StatItemProps> = ({
   label,
   value,
   sublabel,
-  icon,
   color = 'text.primary',
+  trend,
 }) => (
   <Box sx={{ textAlign: 'center', py: 2 }}>
-    {icon && (
-      <Box sx={{ mb: 1, color }}>
-        {icon}
-      </Box>
-    )}
     <Typography variant="h4" fontWeight={700} color={color}>
       {value}
     </Typography>
     <Typography variant="body2" color="text.secondary">
       {label}
     </Typography>
+    {trend && (
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 0.5 }}>
+        {trend.positive ? (
+          <TrendingUp sx={{ fontSize: 14, color: 'success.main' }} />
+        ) : (
+          <TrendingDown sx={{ fontSize: 14, color: 'error.main' }} />
+        )}
+        <Typography
+          variant="caption"
+          color={trend.positive ? 'success.main' : 'error.main'}
+        >
+          {trend.value}%
+        </Typography>
+      </Box>
+    )}
     {sublabel && (
       <Typography variant="caption" color="text.secondary">
         {sublabel}
@@ -117,17 +145,79 @@ const StatItem: React.FC<StatItemProps> = ({
   </Box>
 );
 
+// KPI Card Component
+interface KPICardProps {
+  title: string;
+  value: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  color: string;
+  trend?: { value: number; positive: boolean };
+}
+
+const KPICard: React.FC<KPICardProps> = ({ title, value, subtitle, icon, color, trend }) => {
+  return (
+    <Card sx={{ height: '100%' }}>
+      <CardContent>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Box>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              {title}
+            </Typography>
+            <Typography variant="h4" fontWeight={700} color={color}>
+              {value}
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+              {trend && (
+                <>
+                  {trend.positive ? (
+                    <TrendingUp sx={{ fontSize: 16, color: 'success.main' }} />
+                  ) : (
+                    <TrendingDown sx={{ fontSize: 16, color: 'error.main' }} />
+                  )}
+                  <Typography
+                    variant="caption"
+                    color={trend.positive ? 'success.main' : 'error.main'}
+                    fontWeight={500}
+                  >
+                    {trend.value}%
+                  </Typography>
+                </>
+              )}
+              <Typography variant="caption" color="text.secondary">
+                {subtitle}
+              </Typography>
+            </Box>
+          </Box>
+          <Avatar
+            sx={{
+              bgcolor: alpha(color, 0.1),
+              color: color,
+              width: 48,
+              height: 48,
+            }}
+          >
+            {icon}
+          </Avatar>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
+
 // Main Dashboard
 const DashboardPage: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { company } = useAppSelector((state: RootState) => state.auth);
+  const [activeTab, setActiveTab] = useState(0);
 
   // Mock data
   const notasFiscais = {
     emitidas: 12,
     pendentes: 3,
     valorTotal: 45678.90,
+    variacao: 12,
   };
 
   const impostos = {
@@ -135,6 +225,7 @@ const DashboardPage: React.FC = () => {
     pagos: 5,
     proximoVencimento: '20/01/2025',
     valorPendente: 1234.56,
+    totalMes: 7586.00,
   };
 
   const obrigacoes = [
@@ -160,24 +251,119 @@ const DashboardPage: React.FC = () => {
   return (
     <Box>
       {/* Welcome Section */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
-          Olá! 👋
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Confira o resumo da sua empresa {company?.nomeFantasia || 'Empresa Demo'}
-        </Typography>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Box>
+          <Typography variant="h4" fontWeight={700} gutterBottom>
+            Olá! 👋
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Confira o resumo da sua empresa {company?.nomeFantasia || 'Empresa Demo'}
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip title="Atualizar dados">
+            <IconButton size="small">
+              <Refresh />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Personalizar widgets">
+            <IconButton size="small">
+              <Settings />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
+
+      {/* KPI Cards Row */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <KPICard
+            title="Faturamento do Mês"
+            value={formatCurrency(notasFiscais.valorTotal)}
+            subtitle="vs. mês anterior"
+            icon={<TrendingUp />}
+            color={theme.palette.success.main}
+            trend={{ value: 12, positive: true }}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <KPICard
+            title="Notas Emitidas"
+            value={notasFiscais.emitidas.toString()}
+            subtitle="este mês"
+            icon={<Receipt />}
+            color={theme.palette.primary.main}
+            trend={{ value: 8, positive: true }}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <KPICard
+            title="Impostos Pendentes"
+            value={formatCurrency(impostos.valorPendente)}
+            subtitle="próximo venc. 20/01"
+            icon={<Payment />}
+            color={theme.palette.warning.main}
+          />
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <KPICard
+            title="Total de Impostos"
+            value={formatCurrency(impostos.totalMes)}
+            subtitle="dezembro/2024"
+            icon={<AccountBalance />}
+            color={theme.palette.info.main}
+            trend={{ value: 3, positive: false }}
+          />
+        </Grid>
+      </Grid>
 
       {/* Main Grid */}
       <Grid container spacing={3}>
-        {/* Notas Fiscais Card */}
+        {/* Gráfico de Faturamento - Full Width */}
+        <Grid item xs={12} lg={8}>
+          <Card sx={{ height: '100%' }}>
+            <DashboardCardHeader
+              icon={<TrendingUp />}
+              title="Evolução Financeira"
+              subtitle="Últimos 6 meses"
+              color="success.main"
+              action={
+                <Tabs
+                  value={activeTab}
+                  onChange={(_, v) => setActiveTab(v)}
+                  sx={{ minHeight: 32 }}
+                >
+                  <Tab label="Faturamento" sx={{ minHeight: 32, py: 0 }} />
+                  <Tab label="Impostos" sx={{ minHeight: 32, py: 0 }} />
+                </Tabs>
+              }
+            />
+            <CardContent>
+              {activeTab === 0 ? (
+                <GraficoFaturamento />
+              ) : (
+                <GraficoImpostos />
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Notificações */}
         <Grid item xs={12} lg={4}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <CentralNotificacoes compacto />
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Notas Fiscais Card */}
+        <Grid item xs={12} md={6} lg={4}>
           <Card sx={{ height: '100%' }}>
             <DashboardCardHeader
               icon={<Receipt />}
               title="Notas Fiscais"
-              subtitle="Janeiro 2025"
+              subtitle="Dezembro 2024"
               action={
                 <Button
                   size="small"
@@ -195,6 +381,7 @@ const DashboardPage: React.FC = () => {
                     label="Emitidas"
                     value={notasFiscais.emitidas}
                     color="success.main"
+                    trend={{ value: 8, positive: true }}
                   />
                 </Grid>
                 <Grid item xs={4}>
@@ -218,7 +405,7 @@ const DashboardPage: React.FC = () => {
                   variant="contained"
                   fullWidth
                   startIcon={<Add />}
-                  onClick={() => navigate('/notas/nova')}
+                  onClick={() => navigate('/notas/emitir')}
                   sx={{ mb: 2 }}
                 >
                   Emitir Nova Nota
@@ -266,7 +453,7 @@ const DashboardPage: React.FC = () => {
         </Grid>
 
         {/* Impostos Card */}
-        <Grid item xs={12} lg={4}>
+        <Grid item xs={12} md={6} lg={4}>
           <Card sx={{ height: '100%' }}>
             <DashboardCardHeader
               icon={<Payment />}
@@ -384,109 +571,26 @@ const DashboardPage: React.FC = () => {
           </Card>
         </Grid>
 
-        {/* Conta Digital / Pro-labore Card */}
-        <Grid item xs={12} lg={4}>
+        {/* Documentos Recentes */}
+        <Grid item xs={12} md={6} lg={4}>
           <Card sx={{ height: '100%' }}>
             <DashboardCardHeader
-              icon={<AccountBalance />}
-              title="Financeiro"
-              subtitle="Resumo do mês"
-              color="success.main"
+              icon={<FileDownload />}
+              title="Documentos"
+              subtitle="Arquivos recentes"
+              color="info.main"
               action={
-                <IconButton size="small">
-                  <MoreVert />
-                </IconButton>
+                <Button
+                  size="small"
+                  endIcon={<ArrowForward />}
+                  onClick={() => navigate('/documentos')}
+                >
+                  Ver todos
+                </Button>
               }
             />
             <CardContent>
-              <Box sx={{ textAlign: 'center', py: 3 }}>
-                <Typography variant="overline" color="text.secondary">
-                  Receita do mês
-                </Typography>
-                <Typography variant="h3" fontWeight={700} color="success.main">
-                  {formatCurrency(notasFiscais.valorTotal)}
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, mt: 1 }}>
-                  <TrendingUp sx={{ color: 'success.main', fontSize: 18 }} />
-                  <Typography variant="body2" color="success.main">
-                    +12% em relação ao mês anterior
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Box sx={{ mt: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Meta mensal
-                  </Typography>
-                  <Typography variant="body2" fontWeight={500}>
-                    76%
-                  </Typography>
-                </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={76}
-                  sx={{
-                    height: 8,
-                    borderRadius: 4,
-                    bgcolor: alpha(theme.palette.primary.main, 0.1),
-                    '& .MuiLinearProgress-bar': {
-                      borderRadius: 4,
-                    },
-                  }}
-                />
-                <Typography variant="caption" color="text.secondary">
-                  R$ 45.678,90 de R$ 60.000,00
-                </Typography>
-              </Box>
-
-              <Box sx={{ mt: 3 }}>
-                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>
-                  Ações rápidas
-                </Typography>
-                <Grid container spacing={1}>
-                  <Grid item xs={6}>
-                    <Button
-                      variant="outlined"
-                      fullWidth
-                      startIcon={<FileDownload />}
-                      size="small"
-                    >
-                      Relatório
-                    </Button>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Button
-                      variant="outlined"
-                      fullWidth
-                      startIcon={<CalendarMonth />}
-                      size="small"
-                      onClick={() => navigate('/calendario')}
-                    >
-                      Agenda
-                    </Button>
-                  </Grid>
-                </Grid>
-              </Box>
-
-              <Box
-                sx={{
-                  bgcolor: alpha(theme.palette.primary.main, 0.05),
-                  borderRadius: 2,
-                  p: 2,
-                  mt: 3,
-                }}
-              >
-                <Typography variant="subtitle2" gutterBottom>
-                  Pró-labore do mês
-                </Typography>
-                <Typography variant="h5" fontWeight={700}>
-                  {formatCurrency(5500)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Previsão com base no faturamento atual
-                </Typography>
-              </Box>
+              <DocumentosRecentesWidget limite={5} />
             </CardContent>
           </Card>
         </Grid>
@@ -519,6 +623,9 @@ const DashboardPage: React.FC = () => {
           </Card>
         </Grid>
       </Grid>
+
+      {/* FAB de Ações Rápidas */}
+      <AtalhosRapidosFAB />
     </Box>
   );
 };
