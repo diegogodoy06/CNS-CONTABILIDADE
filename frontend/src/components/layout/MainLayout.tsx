@@ -6,12 +6,15 @@ import Header from './Header';
 import { useAppSelector } from '../../store/hooks';
 import type { RootState } from '../../store';
 
+const DRAWER_WIDTH = 260;
+const DRAWER_WIDTH_COLLAPSED = 72;
+
 const MainLayout: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
   const { sidebarCollapsed } = useAppSelector((state: RootState) => state.ui);
 
-  const drawerWidth = sidebarCollapsed && !isMobile ? 72 : 280;
+  const drawerWidth = sidebarCollapsed && !isMobile ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH;
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
@@ -27,7 +30,7 @@ const MainLayout: React.FC = () => {
           display: 'flex',
           flexDirection: 'column',
           width: { lg: `calc(100% - ${drawerWidth}px)` },
-          ml: { lg: 0 },
+          ml: { lg: `${drawerWidth}px` },
           transition: theme.transitions.create(['width', 'margin'], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.enteringScreen,
@@ -41,7 +44,7 @@ const MainLayout: React.FC = () => {
         <Box
           sx={{
             flexGrow: 1,
-            pt: { xs: '64px', sm: '64px' }, // Toolbar height
+            mt: '64px', // Toolbar height
             px: { xs: 2, sm: 3, md: 4 },
             py: { xs: 2, sm: 3 },
             overflow: 'auto',

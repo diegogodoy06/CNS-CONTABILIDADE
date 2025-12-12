@@ -10,10 +10,11 @@ import {
   ListItemText,
   Typography,
   Avatar,
-  IconButton,
-  Tooltip,
   useTheme,
   useMediaQuery,
+  IconButton,
+  Tooltip,
+  alpha,
 } from '@mui/material';
 import {
   Dashboard,
@@ -23,14 +24,17 @@ import {
   Assessment,
   Payment,
   Settings,
+  CalendarMonth,
+  AccountBalance,
+  Help,
   ChevronLeft,
   ChevronRight,
 } from '@mui/icons-material';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import type { RootState } from '../../store';
-import { toggleSidebar, setSidebarMobileOpen } from '../../store/slices/uiSlice';
+import { setSidebarMobileOpen, toggleSidebar } from '../../store/slices/uiSlice';
 
-const DRAWER_WIDTH = 280;
+const DRAWER_WIDTH = 260;
 const DRAWER_WIDTH_COLLAPSED = 72;
 
 interface NavItem {
@@ -40,12 +44,18 @@ interface NavItem {
 }
 
 const mainNavItems: NavItem[] = [
-  { path: '/dashboard', label: 'Dashboard', icon: <Dashboard /> },
+  { path: '/dashboard', label: 'Início', icon: <Dashboard /> },
   { path: '/notas', label: 'Notas Fiscais', icon: <Receipt /> },
-  { path: '/guias', label: 'Guias e Impostos', icon: <Payment /> },
+  { path: '/guias', label: 'Impostos', icon: <Payment /> },
   { path: '/documentos', label: 'Documentos', icon: <Description /> },
   { path: '/tomadores', label: 'Tomadores', icon: <People /> },
+  { path: '/calendario', label: 'Calendário', icon: <CalendarMonth /> },
   { path: '/relatorios', label: 'Relatórios', icon: <Assessment /> },
+];
+
+const bottomNavItems: NavItem[] = [
+  { path: '/configuracoes', label: 'Configurações', icon: <Settings /> },
+  { path: '/ajuda', label: 'Central de Ajuda', icon: <Help /> },
 ];
 
 const Sidebar: React.FC = () => {
@@ -54,20 +64,20 @@ const Sidebar: React.FC = () => {
   const dispatch = useAppDispatch();
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'));
   
-  const { sidebarCollapsed, sidebarMobileOpen } = useAppSelector((state: RootState) => state.ui);
-  const { user, company } = useAppSelector((state: RootState) => state.auth);
-
-  const drawerWidth = sidebarCollapsed && !isMobile ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH;
+  const { sidebarMobileOpen, sidebarCollapsed } = useAppSelector((state: RootState) => state.ui);
+  const { company } = useAppSelector((state: RootState) => state.auth);
 
   const handleDrawerToggle = () => {
-    if (isMobile) {
-      dispatch(setSidebarMobileOpen(!sidebarMobileOpen));
-    } else {
-      dispatch(toggleSidebar());
-    }
+    dispatch(setSidebarMobileOpen(!sidebarMobileOpen));
+  };
+
+  const handleToggleCollapse = () => {
+    dispatch(toggleSidebar());
   };
 
   const isActive = (path: string) => location.pathname.startsWith(path);
+
+  const drawerWidth = sidebarCollapsed && !isMobile ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH;
 
   const drawerContent = (
     <Box
@@ -75,35 +85,27 @@ const Sidebar: React.FC = () => {
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        bgcolor: 'secondary.main',
-        color: 'grey.300',
+        bgcolor: 'background.paper',
       }}
     >
-      {/* Header / Logo */}
+      {/* Logo */}
       <Box
         sx={{
           height: 64,
           display: 'flex',
           alignItems: 'center',
-          px: sidebarCollapsed && !isMobile ? 1.5 : 3,
-          bgcolor: 'secondary.dark',
+          justifyContent: sidebarCollapsed && !isMobile ? 'center' : 'space-between',
+          px: sidebarCollapsed && !isMobile ? 1 : 2,
           borderBottom: '1px solid',
-          borderColor: 'rgba(255,255,255,0.08)',
+          borderColor: 'divider',
         }}
       >
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
-            overflow: 'hidden',
-          }}
-        >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, overflow: 'hidden' }}>
           <Box
             sx={{
-              width: 40,
-              height: 40,
-              borderRadius: 1.5,
+              width: 36,
+              height: 36,
+              borderRadius: '8px',
               bgcolor: 'primary.main',
               display: 'flex',
               alignItems: 'center',
@@ -111,176 +113,199 @@ const Sidebar: React.FC = () => {
               flexShrink: 0,
             }}
           >
-            <Typography variant="h6" sx={{ color: 'white', fontWeight: 'bold' }}>
-              C
-            </Typography>
+            <AccountBalance sx={{ color: '#fff', fontSize: 20 }} />
           </Box>
           {(!sidebarCollapsed || isMobile) && (
-            <Box sx={{ overflow: 'hidden' }}>
-              <Typography variant="subtitle1" sx={{ color: 'white', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                CNS <Typography component="span" sx={{ color: 'grey.400', fontWeight: 'normal' }}>Contábil</Typography>
-              </Typography>
-            </Box>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 700,
+                color: 'text.primary',
+                fontSize: '1.1rem',
+                letterSpacing: '-0.5px',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              CNS Contábil
+            </Typography>
           )}
         </Box>
-      </Box>
-
-      {/* User Profile */}
-      <Box
-        sx={{
-          p: sidebarCollapsed && !isMobile ? 1.5 : 2,
-          borderBottom: '1px solid',
-          borderColor: 'rgba(255,255,255,0.08)',
-          bgcolor: 'rgba(255,255,255,0.02)',
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Avatar
+        {!isMobile && (
+          <IconButton
+            onClick={handleToggleCollapse}
+            size="small"
             sx={{
-              width: 40,
-              height: 40,
-              bgcolor: 'grey.700',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              flexShrink: 0,
+              color: 'text.secondary',
+              '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.08) },
             }}
           >
-            {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'US'}
-          </Avatar>
-          {(!sidebarCollapsed || isMobile) && (
-            <Box sx={{ overflow: 'hidden', flex: 1 }}>
+            {sidebarCollapsed ? <ChevronRight /> : <ChevronLeft />}
+          </IconButton>
+        )}
+      </Box>
+
+      {/* Company Info */}
+      {(!sidebarCollapsed || isMobile) && (
+        <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar
+              sx={{
+                width: 40,
+                height: 40,
+                bgcolor: 'primary.main',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+              }}
+            >
+              {company?.nomeFantasia?.substring(0, 2).toUpperCase() || 'EM'}
+            </Avatar>
+            <Box sx={{ overflow: 'hidden' }}>
               <Typography
-                variant="body2"
-                sx={{ color: 'white', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                variant="subtitle2"
+                sx={{
+                  color: 'text.primary',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
               >
-                {user?.name || 'Usuário'}
+                {company?.nomeFantasia || 'Empresa Demo'}
               </Typography>
               <Typography
                 variant="caption"
-                sx={{ color: 'grey.500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}
+                sx={{ color: 'text.secondary', fontSize: '0.7rem' }}
               >
-                {company?.nomeFantasia || company?.razaoSocial || 'Empresa'}
+                CNPJ: {company?.cnpj || '00.000.000/0001-00'}
               </Typography>
             </Box>
-          )}
+          </Box>
         </Box>
-      </Box>
+      )}
 
-      {/* Navigation */}
-      <Box sx={{ flex: 1, overflow: 'auto', py: 2 }}>
-        {(!sidebarCollapsed || isMobile) && (
-          <Typography
-            variant="overline"
-            sx={{ px: 3, mb: 1, display: 'block', color: 'grey.500', fontSize: '0.625rem' }}
-          >
-            Menu Principal
-          </Typography>
-        )}
-        <List sx={{ px: 1 }}>
-          {mainNavItems.map((item) => (
-            <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
-              <Tooltip title={sidebarCollapsed && !isMobile ? item.label : ''} placement="right">
-                <ListItemButton
-                  component={NavLink}
-                  to={item.path}
-                  onClick={() => isMobile && dispatch(setSidebarMobileOpen(false))}
-                  sx={{
-                    minHeight: 44,
-                    borderRadius: 1,
-                    px: sidebarCollapsed && !isMobile ? 1.5 : 2,
-                    justifyContent: sidebarCollapsed && !isMobile ? 'center' : 'flex-start',
-                    borderLeft: '3px solid',
-                    borderColor: isActive(item.path) ? 'primary.main' : 'transparent',
-                    bgcolor: isActive(item.path) ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-                    '&:hover': {
-                      bgcolor: isActive(item.path) ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.05)',
-                    },
-                  }}
-                >
-                  <ListItemIcon
-                    sx={{
-                      minWidth: sidebarCollapsed && !isMobile ? 0 : 40,
-                      color: isActive(item.path) ? 'primary.light' : 'grey.500',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    {item.icon}
-                  </ListItemIcon>
-                  {(!sidebarCollapsed || isMobile) && (
-                    <ListItemText
-                      primary={item.label}
-                      primaryTypographyProps={{
-                        fontSize: '0.875rem',
-                        fontWeight: isActive(item.path) ? 500 : 400,
-                        color: isActive(item.path) ? 'white' : 'grey.400',
-                      }}
-                    />
-                  )}
-                </ListItemButton>
-              </Tooltip>
-            </ListItem>
-          ))}
-        </List>
-      </Box>
-
-      {/* Footer */}
-      <Box sx={{ borderTop: '1px solid', borderColor: 'rgba(255,255,255,0.08)' }}>
-        <List sx={{ px: 1, py: 1 }}>
-          <ListItem disablePadding>
-            <Tooltip title={sidebarCollapsed && !isMobile ? 'Configurações' : ''} placement="right">
-              <ListItemButton
-                component={NavLink}
-                to="/configuracoes"
-                sx={{
-                  minHeight: 44,
-                  borderRadius: 1,
-                  px: sidebarCollapsed && !isMobile ? 1.5 : 2,
-                  justifyContent: sidebarCollapsed && !isMobile ? 'center' : 'flex-start',
-                }}
-              >
-                <ListItemIcon
-                  sx={{
-                    minWidth: sidebarCollapsed && !isMobile ? 0 : 40,
-                    color: 'grey.500',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Settings />
-                </ListItemIcon>
-                {(!sidebarCollapsed || isMobile) && (
-                  <ListItemText
-                    primary="Configurações"
-                    primaryTypographyProps={{ fontSize: '0.875rem', color: 'grey.400' }}
-                  />
-                )}
-              </ListItemButton>
-            </Tooltip>
-          </ListItem>
-        </List>
-
-        {/* Collapse Toggle - Desktop Only */}
-        {!isMobile && (
-          <Box
-            sx={{
-              p: 1.5,
-              borderTop: '1px solid',
-              borderColor: 'rgba(255,255,255,0.08)',
-              bgcolor: 'secondary.dark',
-            }}
-          >
-            <IconButton
-              onClick={handleDrawerToggle}
+      {/* Collapsed Company Avatar */}
+      {sidebarCollapsed && !isMobile && (
+        <Box sx={{ py: 2, display: 'flex', justifyContent: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Tooltip title={company?.nomeFantasia || 'Empresa Demo'} placement="right">
+            <Avatar
               sx={{
-                width: '100%',
-                borderRadius: 1,
-                color: 'grey.400',
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' },
+                width: 40,
+                height: 40,
+                bgcolor: 'primary.main',
+                fontSize: '0.875rem',
+                fontWeight: 600,
               }}
             >
-              {sidebarCollapsed ? <ChevronRight /> : <ChevronLeft />}
-            </IconButton>
-          </Box>
-        )}
+              {company?.nomeFantasia?.substring(0, 2).toUpperCase() || 'EM'}
+            </Avatar>
+          </Tooltip>
+        </Box>
+      )}
+
+      {/* Main Navigation */}
+      <Box sx={{ flex: 1, py: 2, overflowY: 'auto' }}>
+        <List sx={{ px: sidebarCollapsed && !isMobile ? 0.5 : 1 }}>
+          {mainNavItems.map((item) => {
+            const active = isActive(item.path);
+            return (
+              <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
+                <Tooltip title={sidebarCollapsed && !isMobile ? item.label : ''} placement="right">
+                  <ListItemButton
+                    component={NavLink}
+                    to={item.path}
+                    onClick={isMobile ? handleDrawerToggle : undefined}
+                    sx={{
+                      borderRadius: '8px',
+                      py: 1.25,
+                      px: sidebarCollapsed && !isMobile ? 1.5 : 1.5,
+                      minHeight: 44,
+                      justifyContent: sidebarCollapsed && !isMobile ? 'center' : 'flex-start',
+                      color: active ? 'primary.main' : 'text.secondary',
+                      bgcolor: active ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                      '&:hover': {
+                        bgcolor: alpha(theme.palette.primary.main, 0.08),
+                        color: 'primary.main',
+                      },
+                    }}
+                  >
+                    <ListItemIcon
+                      sx={{
+                        color: 'inherit',
+                        minWidth: sidebarCollapsed && !isMobile ? 0 : 36,
+                        justifyContent: 'center',
+                        '& svg': { fontSize: 22 },
+                      }}
+                    >
+                      {item.icon}
+                    </ListItemIcon>
+                    {(!sidebarCollapsed || isMobile) && (
+                      <ListItemText
+                        primary={item.label}
+                        primaryTypographyProps={{
+                          fontSize: '0.875rem',
+                          fontWeight: active ? 600 : 500,
+                        }}
+                      />
+                    )}
+                  </ListItemButton>
+                </Tooltip>
+              </ListItem>
+            );
+          })}
+        </List>
+      </Box>
+
+      {/* Bottom Navigation */}
+      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', py: 2 }}>
+        <List sx={{ px: sidebarCollapsed && !isMobile ? 0.5 : 1 }}>
+          {bottomNavItems.map((item) => {
+            const active = isActive(item.path);
+            return (
+              <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
+                <Tooltip title={sidebarCollapsed && !isMobile ? item.label : ''} placement="right">
+                  <ListItemButton
+                    component={NavLink}
+                    to={item.path}
+                    onClick={isMobile ? handleDrawerToggle : undefined}
+                    sx={{
+                      borderRadius: '8px',
+                      py: 1,
+                      px: sidebarCollapsed && !isMobile ? 1.5 : 1.5,
+                      minHeight: 40,
+                      justifyContent: sidebarCollapsed && !isMobile ? 'center' : 'flex-start',
+                      color: active ? 'primary.main' : 'text.secondary',
+                      bgcolor: active ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                      '&:hover': {
+                        bgcolor: alpha(theme.palette.primary.main, 0.08),
+                        color: 'primary.main',
+                      },
+                    }}
+                  >
+                    <ListItemIcon
+                      sx={{
+                        color: 'inherit',
+                        minWidth: sidebarCollapsed && !isMobile ? 0 : 36,
+                        justifyContent: 'center',
+                        '& svg': { fontSize: 20 },
+                      }}
+                    >
+                      {item.icon}
+                    </ListItemIcon>
+                    {(!sidebarCollapsed || isMobile) && (
+                      <ListItemText
+                        primary={item.label}
+                        primaryTypographyProps={{
+                          fontSize: '0.8125rem',
+                          fontWeight: 400,
+                        }}
+                      />
+                    )}
+                  </ListItemButton>
+                </Tooltip>
+              </ListItem>
+            );
+          })}
+        </List>
       </Box>
     </Box>
   );
@@ -298,7 +323,6 @@ const Sidebar: React.FC = () => {
           '& .MuiDrawer-paper': {
             width: DRAWER_WIDTH,
             boxSizing: 'border-box',
-            border: 'none',
           },
         }}
       >
@@ -313,7 +337,6 @@ const Sidebar: React.FC = () => {
           '& .MuiDrawer-paper': {
             width: drawerWidth,
             boxSizing: 'border-box',
-            border: 'none',
             transition: theme.transitions.create('width', {
               easing: theme.transitions.easing.sharp,
               duration: theme.transitions.duration.enteringScreen,

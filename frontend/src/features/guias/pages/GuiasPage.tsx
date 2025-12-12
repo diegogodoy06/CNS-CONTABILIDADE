@@ -55,6 +55,7 @@ const mockGuias: Guia[] = [
   {
     id: '1',
     tipo: 'DAS',
+    descricao: 'DAS - Simples Nacional - Competência 11/2024',
     competencia: '11/2024',
     dataVencimento: '2024-12-20',
     valor: 285.60,
@@ -65,6 +66,7 @@ const mockGuias: Guia[] = [
   {
     id: '2',
     tipo: 'ISS',
+    descricao: 'ISS - Imposto sobre Serviços - Competência 11/2024',
     competencia: '11/2024',
     dataVencimento: '2024-12-10',
     valor: 225.00,
@@ -77,6 +79,7 @@ const mockGuias: Guia[] = [
   {
     id: '3',
     tipo: 'INSS',
+    descricao: 'INSS Patronal - Competência 11/2024',
     competencia: '11/2024',
     dataVencimento: '2024-12-15',
     valor: 1320.00,
@@ -87,6 +90,7 @@ const mockGuias: Guia[] = [
   {
     id: '4',
     tipo: 'IRPJ',
+    descricao: 'IRPJ - Imposto de Renda Pessoa Jurídica - Competência 10/2024',
     competencia: '10/2024',
     dataVencimento: '2024-11-30',
     valor: 450.00,
@@ -97,6 +101,7 @@ const mockGuias: Guia[] = [
   {
     id: '5',
     tipo: 'CSLL',
+    descricao: 'CSLL - Contribuição Social sobre Lucro Líquido - Competência 10/2024',
     competencia: '10/2024',
     dataVencimento: '2024-11-30',
     valor: 180.00,
@@ -108,6 +113,7 @@ const mockGuias: Guia[] = [
   {
     id: '6',
     tipo: 'DAS',
+    descricao: 'DAS - Simples Nacional - Competência 12/2024',
     competencia: '12/2024',
     dataVencimento: '2025-01-20',
     valor: 310.25,
