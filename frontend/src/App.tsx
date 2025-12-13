@@ -19,6 +19,7 @@ const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPag
 const DocumentsPage = lazy(() => import('./features/documents/pages/DocumentsPage'));
 const NotasPage = lazy(() => import('./features/notas/pages/NotasPage'));
 const EmitirNotaPage = lazy(() => import('./features/notas/pages/EmitirNotaPage'));
+const RascunhosPage = lazy(() => import('./features/notas/pages/RascunhosPage'));
 const GuiasPage = lazy(() => import('./features/guias/pages/GuiasPage'));
 const TomadoresPage = lazy(() => import('./features/tomadores/pages/TomadoresPage'));
 const CalendarioPage = lazy(() => import('./features/calendario/pages/CalendarioPage'));
@@ -51,8 +52,7 @@ interface PrivateRouteProps {
 }
 
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
-  // TODO: Replace with actual auth check from Redux store
-  const isAuthenticated = true; // Temporarily always authenticated for development
+  const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -67,8 +67,7 @@ interface PublicRouteProps {
 }
 
 const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
-  // TODO: Replace with actual auth check from Redux store
-  const isAuthenticated = true; // Set to true to skip login and go to dashboard
+  const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
   
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
@@ -145,6 +144,7 @@ const AppContent: React.FC = () => {
                 <Route path="documentos" element={<DocumentsPage />} />
                 <Route path="notas" element={<NotasPage />} />
                 <Route path="notas/emitir" element={<EmitirNotaPage />} />
+                <Route path="notas/rascunhos" element={<RascunhosPage />} />
                 <Route path="guias" element={<GuiasPage />} />
                 <Route path="tomadores" element={<TomadoresPage />} />
                 <Route path="calendario" element={<CalendarioPage />} />

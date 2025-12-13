@@ -1,5 +1,4 @@
-import api, { handleApiError } from './api';
-import type { User, Company, LoginForm, ApiResponse } from '../types';
+import type { User, Company, LoginForm } from '../types';
 
 interface LoginResponse {
   user: User;
@@ -8,15 +7,72 @@ interface LoginResponse {
   refreshToken: string;
 }
 
+// Mock data para desenvolvimento
+const MOCK_USER: User = {
+  id: '1',
+  nome: 'João da Silva',
+  email: 'joao@empresa.com.br',
+  cpf: '123.456.789-00',
+  telefone: '(11) 99999-9999',
+  cargo: 'Administrador',
+  perfil: 'admin',
+  ativo: true,
+  ultimoAcesso: new Date().toISOString(),
+};
+
+const MOCK_COMPANY: Company = {
+  id: '1',
+  cnpj: '12.345.678/0001-99',
+  razaoSocial: 'Empresa Demo Ltda',
+  nomeFantasia: 'Empresa Demo',
+  inscricaoEstadual: '123.456.789.123',
+  inscricaoMunicipal: '12345678',
+  endereco: {
+    logradouro: 'Rua das Flores',
+    numero: '123',
+    complemento: 'Sala 101',
+    bairro: 'Centro',
+    cidade: 'São Paulo',
+    estado: 'SP',
+    cep: '01234-567',
+  },
+  telefone: '(11) 3333-4444',
+  email: 'contato@empresa.com.br',
+  regime: 'simples',
+  atividadePrincipal: '62.01-5-01 - Desenvolvimento de programas de computador sob encomenda',
+};
+
+// Credenciais válidas para teste
+const VALID_CREDENTIALS = [
+  { cnpj: '12345678000199', senha: '12345678' },
+  { cnpj: '00000000000000', senha: 'admin123' },
+];
+
 export const authService = {
-  // Login com CNPJ e senha
+  // Login com CNPJ e senha (MODO MOCK)
   async login(data: LoginForm): Promise<LoginResponse> {
-    try {
-      const response = await api.post<ApiResponse<LoginResponse>>('/auth/login', data);
-      return response.data.data;
-    } catch (error) {
-      throw new Error(handleApiError(error));
+    // Simula delay de rede
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // Remove formatação do CNPJ
+    const cleanCNPJ = data.cnpj.replace(/\D/g, '');
+    
+    // Verifica credenciais
+    const isValid = VALID_CREDENTIALS.some(
+      cred => cred.cnpj === cleanCNPJ && cred.senha === data.senha
+    );
+    
+    if (!isValid) {
+      throw new Error('CNPJ ou senha inválidos');
     }
+    
+    // Retorna dados mock
+    return {
+      user: MOCK_USER,
+      company: { ...MOCK_COMPANY, cnpj: data.cnpj },
+      token: 'mock-jwt-token-' + Date.now(),
+      refreshToken: 'mock-refresh-token-' + Date.now(),
+    };
   },
 
   // Logout

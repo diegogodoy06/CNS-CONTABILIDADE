@@ -31,15 +31,15 @@
 
 ### 🔄 Em Desenvolvimento
 
-#### 1. Autenticação e Gestão de Acesso (RF-AUTH)
+#### 1. Autenticação e Gestão de Acesso (RF-AUTH) - Parcialmente Implementado
 
-- [ ] **RF-AUTH-001: Login Multi-fator**
-  - [ ] Login com CNPJ + senha
-  - [ ] Validação de campos
-  - [ ] Captcha após 3 tentativas falhas
-  - [ ] Bloqueio temporário após 5 tentativas
+- [x] **RF-AUTH-001: Login Multi-fator**
+  - [x] Login com CNPJ + senha
+  - [x] Validação de campos
+  - [x] Captcha após 3 tentativas falhas
+  - [x] Bloqueio temporário após 5 tentativas
+  - [x] 2FA via Google Authenticator (UI pronta)
   - [ ] 2FA via Email/SMS (opcional)
-  - [ ] 2FA via Google Authenticator
 
 - [ ] **RF-AUTH-002: Gestão de Sessões**
   - [ ] Implementar refresh token
@@ -47,6 +47,7 @@
   - [ ] Exibir dispositivos conectados
 
 - [ ] **RF-AUTH-003: Recuperação de Senha**
+  - [x] Página de recuperação básica
   - [ ] Validação de CPF do responsável
   - [ ] Token expirável (1 hora)
   - [ ] Força de senha (validações)
@@ -105,10 +106,12 @@
   - [ ] PDF com marca d'água "SIMULAÇÃO"
   - [ ] Converter simulação em emissão
 
-- [ ] **RF-NF-003: Gestão de Rascunhos**
-  - [ ] Listagem de rascunhos
-  - [ ] Editar/Duplicar/Excluir
-  - [ ] Alerta de rascunhos antigos
+- [x] **RF-NF-003: Gestão de Rascunhos** ✅ IMPLEMENTADO
+  - [x] Listagem de rascunhos com busca
+  - [x] Editar/Duplicar/Excluir
+  - [x] Alerta de rascunhos antigos (+7 dias)
+  - [x] Estatísticas (prontos, incompletos, antigos)
+  - [x] Badge no menu lateral
 
 - [ ] **RF-NF-007: Histórico e Relatórios**
   - [ ] Filtros avançados

@@ -15,6 +15,7 @@ import {
   IconButton,
   Tooltip,
   alpha,
+  Badge,
 } from '@mui/material';
 import {
   Dashboard,
@@ -29,6 +30,7 @@ import {
   Help,
   ChevronLeft,
   ChevronRight,
+  Drafts,
 } from '@mui/icons-material';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import type { RootState } from '../../store';
@@ -41,11 +43,13 @@ interface NavItem {
   path: string;
   label: string;
   icon: React.ReactNode;
+  badge?: number;
 }
 
 const mainNavItems: NavItem[] = [
   { path: '/dashboard', label: 'Início', icon: <Dashboard /> },
   { path: '/notas', label: 'Notas Fiscais', icon: <Receipt /> },
+  { path: '/notas/rascunhos', label: 'Rascunhos', icon: <Drafts />, badge: 5 },
   { path: '/guias', label: 'Impostos', icon: <Payment /> },
   { path: '/documentos', label: 'Documentos', icon: <Description /> },
   { path: '/tomadores', label: 'Tomadores', icon: <People /> },
@@ -236,7 +240,13 @@ const Sidebar: React.FC = () => {
                         '& svg': { fontSize: 22 },
                       }}
                     >
-                      {item.icon}
+                      {item.badge ? (
+                        <Badge badgeContent={item.badge} color="warning" max={99}>
+                          {item.icon}
+                        </Badge>
+                      ) : (
+                        item.icon
+                      )}
                     </ListItemIcon>
                     {(!sidebarCollapsed || isMobile) && (
                       <ListItemText
