@@ -116,7 +116,7 @@ const LoginPage: React.FC = () => {
   });
 
   // Check if account is blocked
-  const isBlocked = blockedUntil && new Date() < blockedUntil;
+  const isBlocked = Boolean(blockedUntil && new Date() < blockedUntil);
 
   // Update block timer
   useEffect(() => {

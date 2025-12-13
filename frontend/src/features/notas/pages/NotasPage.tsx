@@ -34,6 +34,9 @@ import {
   Divider,
   Paper,
   Alert,
+  Snackbar,
+  Checkbox,
+  Badge,
 } from '@mui/material';
 import {
   Search,
@@ -52,10 +55,14 @@ import {
   Error as ErrorIcon,
   AccessTime,
   Description,
+  FileDownload,
 } from '@mui/icons-material';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { NotaFiscal, NotaFiscalStatus, Tomador } from '../../../types';
+import CancelarNotaDialog from '../components/CancelarNotaDialog';
+import FiltrosAvancadosDrawer, { filtrosIniciais, type FiltrosNotas } from '../components/FiltrosAvancadosDrawer';
+import ExportarNotasDialog from '../components/ExportarNotasDialog';
 
 // Mock data
 const mockNotas: NotaFiscal[] = [
@@ -206,6 +213,19 @@ const NotasPage: React.FC = () => {
   const [selectedNota, setSelectedNota] = useState<NotaFiscal | null>(null);
   const [emitirDialogOpen, setEmitirDialogOpen] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
+  const [cancelarDialogOpen, setCancelarDialogOpen] = useState(false);
+  const [notaParaCancelar, setNotaParaCancelar] = useState<NotaFiscal | null>(null);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
+  
+  // Novos estados para filtros e exportação
+  const [filtrosDrawerOpen, setFiltrosDrawerOpen] = useState(false);
+  const [filtros, setFiltros] = useState<FiltrosNotas>(filtrosIniciais);
+  const [exportarDialogOpen, setExportarDialogOpen] = useState(false);
+  const [notasSelecionadas, setNotasSelecionadas] = useState<string[]>([]);
 
   const tabs = [
     { label: 'Todas', count: mockNotas.length },
@@ -235,7 +255,68 @@ const NotasPage: React.FC = () => {
 
   const handleMenuClose = () => {
     setAnchorEl(null);
-    setSelectedNota(null);
+  };
+
+  const handleCancelarNota = () => {
+    handleMenuClose();
+    if (selectedNota) {
+      setNotaParaCancelar(selectedNota);
+      setCancelarDialogOpen(true);
+    }
+  };
+
+  const handleConfirmarCancelamento = async (notaId: string, justificativa: string) => {
+    // Simula chamada à API
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    console.log('Cancelando nota:', notaId, 'Justificativa:', justificativa);
+    setSnackbar({
+      open: true,
+      message: 'Nota fiscal cancelada com sucesso!',
+      severity: 'success'
+    });
+  };
+
+  // Funções para filtros
+  const handleAplicarFiltros = (novosFiltros: FiltrosNotas) => {
+    setFiltros(novosFiltros);
+    setPage(0);
+  };
+
+  const handleLimparFiltros = () => {
+    setFiltros(filtrosIniciais);
+    setPage(0);
+  };
+
+  const contarFiltrosAtivos = () => {
+    let count = 0;
+    if (filtros.dataInicio) count++;
+    if (filtros.dataFim) count++;
+    if (filtros.competencia) count++;
+    if (filtros.status.length > 0) count++;
+    if (filtros.tomadorId) count++;
+    if (filtros.valorMinimo || filtros.valorMaximo) count++;
+    if (filtros.numeroInicio || filtros.numeroFim) count++;
+    if (filtros.cnaeList.length > 0) count++;
+    if (filtros.comRetencao !== null) count++;
+    if (filtros.municipioPrestacao) count++;
+    return count;
+  };
+
+  // Funções para seleção
+  const handleSelectNota = (notaId: string) => {
+    setNotasSelecionadas(prev =>
+      prev.includes(notaId)
+        ? prev.filter(id => id !== notaId)
+        : [...prev, notaId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (notasSelecionadas.length === filteredNotas.length) {
+      setNotasSelecionadas([]);
+    } else {
+      setNotasSelecionadas(filteredNotas.map(n => n.id));
+    }
   };
 
   const steps = ['Tomador', 'Serviço', 'Revisão'];
@@ -255,9 +336,26 @@ const NotasPage: React.FC = () => {
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Button
             variant="outlined"
-            startIcon={<FilterList />}
+            startIcon={<FileDownload />}
+            onClick={() => setExportarDialogOpen(true)}
           >
-            Filtrar
+            Exportar
+          </Button>
+          <Badge badgeContent={contarFiltrosAtivos()} color="primary">
+            <Button
+              variant="outlined"
+              startIcon={<FilterList />}
+              onClick={() => setFiltrosDrawerOpen(true)}
+            >
+              Filtrar
+            </Button>
+          </Badge>
+          <Button
+            variant="outlined"
+            color="secondary"
+            onClick={() => navigate('/notas/emitir?simulacao=true')}
+          >
+            Simular
           </Button>
           <Button
             variant="contained"
@@ -353,8 +451,8 @@ const NotasPage: React.FC = () => {
         </Box>
 
         <CardContent>
-          {/* Search Bar */}
-          <Box sx={{ mb: 3 }}>
+          {/* Search Bar + Selection Info */}
+          <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <TextField
               placeholder="Buscar por número, tomador..."
               size="small"
@@ -369,6 +467,13 @@ const NotasPage: React.FC = () => {
               }}
               sx={{ width: 320 }}
             />
+            {notasSelecionadas.length > 0 && (
+              <Chip
+                label={`${notasSelecionadas.length} selecionada(s)`}
+                color="primary"
+                onDelete={() => setNotasSelecionadas([])}
+              />
+            )}
           </Box>
 
           {/* Table */}
@@ -376,7 +481,14 @@ const NotasPage: React.FC = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>número</TableCell>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      indeterminate={notasSelecionadas.length > 0 && notasSelecionadas.length < filteredNotas.length}
+                      checked={filteredNotas.length > 0 && notasSelecionadas.length === filteredNotas.length}
+                      onChange={handleSelectAll}
+                    />
+                  </TableCell>
+                  <TableCell>Número</TableCell>
                   <TableCell>Tomador</TableCell>
                   <TableCell>Valor</TableCell>
                   <TableCell>Data Emissão</TableCell>
@@ -388,7 +500,17 @@ const NotasPage: React.FC = () => {
                 {filteredNotas
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((nota) => (
-                    <TableRow key={nota.id} hover>
+                    <TableRow 
+                      key={nota.id} 
+                      hover
+                      selected={notasSelecionadas.includes(nota.id)}
+                    >
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          checked={notasSelecionadas.includes(nota.id)}
+                          onChange={() => handleSelectNota(nota.id)}
+                        />
+                      </TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {nota.numero ? `#${nota.numero}` : 'Sem número'}
@@ -498,7 +620,7 @@ const NotasPage: React.FC = () => {
               Enviar por email
             </MenuItem>
             <Divider />
-            <MenuItem onClick={handleMenuClose} sx={{ color: 'error.main' }}>
+            <MenuItem onClick={handleCancelarNota} sx={{ color: 'error.main' }}>
               <ListItemIcon><Cancel fontSize="small" sx={{ color: 'error.main' }} /></ListItemIcon>
               Cancelar nota
             </MenuItem>
@@ -686,6 +808,50 @@ const NotasPage: React.FC = () => {
           </Box>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de Cancelamento */}
+      <CancelarNotaDialog
+        open={cancelarDialogOpen}
+        onClose={() => {
+          setCancelarDialogOpen(false);
+          setNotaParaCancelar(null);
+        }}
+        nota={notaParaCancelar}
+        onConfirm={handleConfirmarCancelamento}
+      />
+
+      {/* Drawer de Filtros Avançados */}
+      <FiltrosAvancadosDrawer
+        open={filtrosDrawerOpen}
+        onClose={() => setFiltrosDrawerOpen(false)}
+        filtros={filtros}
+        onAplicar={handleAplicarFiltros}
+        onLimpar={handleLimparFiltros}
+      />
+
+      {/* Dialog de Exportação */}
+      <ExportarNotasDialog
+        open={exportarDialogOpen}
+        onClose={() => setExportarDialogOpen(false)}
+        totalNotas={filteredNotas.length}
+        notasSelecionadas={notasSelecionadas.length}
+      />
+
+      {/* Snackbar de feedback */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          severity={snackbar.severity} 
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          variant="filled"
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

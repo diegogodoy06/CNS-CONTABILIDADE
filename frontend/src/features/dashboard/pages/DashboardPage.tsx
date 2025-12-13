@@ -9,7 +9,6 @@ import {
   IconButton,
   Chip,
   Avatar,
-  LinearProgress,
   alpha,
   useTheme,
   Tabs,
@@ -25,10 +24,8 @@ import {
   ArrowForward,
   Add,
   Warning,
-  CalendarMonth,
   FileDownload,
   Refresh,
-  Settings,
   Tune,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';

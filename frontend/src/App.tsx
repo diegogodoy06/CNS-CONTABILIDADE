@@ -30,6 +30,8 @@ const ConfiguracoesPage = lazy(() => import('./features/configuracoes/pages/Conf
 const MensagensPage = lazy(() => import('./features/comunicacao/pages/MensagensPage'));
 const TicketsPage = lazy(() => import('./features/comunicacao/pages/TicketsPage'));
 const AjudaPage = lazy(() => import('./features/comunicacao/pages/AjudaPage'));
+const UsuariosPage = lazy(() => import('./features/usuarios/pages/UsuariosPage'));
+const DispositivosPage = lazy(() => import('./features/auth/pages/DispositivosPage'));
 
 // Loading fallback component
 const PageLoader: React.FC = () => (
@@ -161,6 +163,12 @@ const AppContent: React.FC = () => {
                 <Route path="mensagens" element={<MensagensPage />} />
                 <Route path="tickets" element={<TicketsPage />} />
                 <Route path="ajuda" element={<AjudaPage />} />
+                
+                {/* Gestão de Usuários */}
+                <Route path="usuarios" element={<UsuariosPage />} />
+                
+                {/* Segurança */}
+                <Route path="seguranca/dispositivos" element={<DispositivosPage />} />
                 
                 {/* Future routes */}
                 <Route path="perfil" element={<ComingSoon title="Meu Perfil" />} />

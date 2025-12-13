@@ -41,10 +41,14 @@
   - [x] 2FA via Google Authenticator (UI pronta)
   - [ ] 2FA via Email/SMS (opcional)
 
-- [ ] **RF-AUTH-002: Gestão de Sessões**
-  - [ ] Implementar refresh token
+- [ ] **RF-AUTH-002: Gestão de Sessões** 🔄 Parcialmente Implementado
+  - [x] Exibir dispositivos conectados (DispositivosPage)
+  - [x] Encerrar sessão de dispositivos remotamente
+  - [x] Encerrar todas as sessões de uma vez
+  - [x] Identificar sessão atual
+  - [x] Alertas de dispositivos inativos (+7 dias)
+  - [ ] Implementar refresh token automático
   - [ ] Logout automático por inatividade
-  - [ ] Exibir dispositivos conectados
 
 - [ ] **RF-AUTH-003: Recuperação de Senha**
   - [x] Página de recuperação básica
@@ -52,11 +56,11 @@
   - [ ] Token expirável (1 hora)
   - [ ] Força de senha (validações)
 
-- [ ] **RF-AUTH-004: Gestão de Usuários**
-  - [ ] Página de listagem de usuários
-  - [ ] Modal de convite de usuário
-  - [ ] Perfis: Administrador, Operador, Visualizador
-  - [ ] Ativar/Desativar usuário
+- [ ] **RF-AUTH-004: Gestão de Usuários** ✅ IMPLEMENTADO
+  - [x] Página de listagem de usuários
+  - [x] Modal de convite de usuário
+  - [x] Perfis: Administrador, Operador, Visualizador
+  - [x] Ativar/Desativar usuário
 
 ---
 
@@ -101,10 +105,12 @@
     - [x] Resumo de tributos
     - [ ] Botões: Salvar Rascunho / Emitir
 
-- [ ] **RF-NF-002: Simulação de NF-e**
-  - [ ] Mesmo fluxo sem transmissão
-  - [ ] PDF com marca d'água "SIMULAÇÃO"
-  - [ ] Converter simulação em emissão
+- [x] **RF-NF-002: Simulação de NF-e** ✅ IMPLEMENTADO
+  - [x] Mesmo fluxo sem transmissão
+  - [x] PDF com marca d'água "SIMULAÇÃO"
+  - [x] Converter simulação em emissão
+  - [x] Dialog de resultado com preview
+  - [x] Compartilhar link da simulação
 
 - [x] **RF-NF-003: Gestão de Rascunhos** ✅ IMPLEMENTADO
   - [x] Listagem de rascunhos com busca
@@ -113,15 +119,15 @@
   - [x] Estatísticas (prontos, incompletos, antigos)
   - [x] Badge no menu lateral
 
-- [ ] **RF-NF-007: Histórico e Relatórios**
-  - [ ] Filtros avançados
-  - [ ] Exportação Excel/CSV
-  - [ ] Download em lote (ZIP)
+- [x] **RF-NF-007: Histórico e Relatórios** ✅ IMPLEMENTADO
+  - [x] Filtros avançados
+  - [x] Exportação Excel/CSV
+  - [x] Download em lote (ZIP)
 
-- [ ] **RF-NF-008: Cancelamento**
-  - [ ] Modal de cancelamento
-  - [ ] Justificativa obrigatória
-  - [ ] Confirmação em 2 etapas
+- [x] **RF-NF-008: Cancelamento** ✅ IMPLEMENTADO
+  - [x] Modal de cancelamento
+  - [x] Justificativa obrigatória
+  - [x] Confirmação em 2 etapas
 
 ---
 
@@ -132,8 +138,10 @@
   - [x] Formulário PF (CPF, Nome, etc.)
   - [x] Endereço com autocomplete CEP
 
-- [ ] **RF-TOM-002: Importação de Dados**
-  - [ ] Consulta Receita Federal (CNPJ)
+- [x] **RF-TOM-002: Importação de Dados** ✅ IMPLEMENTADO
+  - [x] Consulta Receita Federal (CNPJ)
+  - [x] Dialog com visualização completa dos dados
+  - [x] Importação automática para formulário
   - [ ] Autocomplete de endereço (CEP)
 
 - [x] **RF-TOM-003: Gestão de Tomadores**
@@ -141,10 +149,14 @@
   - [x] Modal de edição
   - [ ] Agrupamento por tags
 
-- [ ] **RF-TOM-004: Histórico**
-  - [ ] Total de notas emitidas
-  - [ ] Faturamento total
-  - [ ] Gráfico de relacionamento
+- [x] **RF-TOM-004: Histórico** ✅ IMPLEMENTADO
+  - [x] Total de notas emitidas
+  - [x] Faturamento total
+  - [x] Gráfico de relacionamento (AreaChart)
+  - [x] Ticket médio
+  - [x] Variação mensal
+  - [x] Listagem de notas do tomador
+  - [x] Dados cadastrais completos
 
 ---
 
@@ -180,27 +192,30 @@
 
 ---
 
-#### 6. Guias e Obrigações (RF-GUIA)
+#### 6. Guias e Obrigações (RF-GUIA) ✅ IMPLEMENTADO
 
 - [x] **RF-GUIA-001: Listagem de Guias**
   - [x] Cards de resumo
   - [x] Tabela com status
   - [x] Filtros por status
 
-- [ ] **RF-GUIA-003: Calendário de Obrigações**
+- [x] **RF-GUIA-003: Calendário de Obrigações** ✅ IMPLEMENTADO
   - [x] Visualização de calendário
-  - [ ] Filtro por tipo de guia
-  - [ ] Lembretes configuráveis
+  - [x] Filtro por tipo de guia (imposto, declaração, folha, outros)
+  - [x] Filtro por status (pagos, pendentes)
+  - [ ] Lembretes configuráveis (push notifications)
 
-- [ ] **RF-GUIA-004: Controle de Vencimentos**
+- [x] **RF-GUIA-004: Controle de Vencimentos** ✅ IMPLEMENTADO
   - [x] Alertas visuais
-  - [ ] Badge no menu lateral
+  - [x] Badge no menu lateral (guias pendentes)
   - [ ] Notificação push
 
-- [ ] **RF-GUIA-005: Comprovação de Pagamento**
+- [x] **RF-GUIA-005: Comprovação de Pagamento** ✅ IMPLEMENTADO
   - [x] Upload de comprovante
-  - [ ] Marcação como paga
-  - [ ] Histórico de pagamentos
+  - [x] Dialog "Marcar como Paga" completo
+  - [x] Histórico de pagamentos com gráficos
+  - [x] Análise por tipo de guia (pizza chart)
+  - [x] Análise por mês (bar chart)
 
 ---
 

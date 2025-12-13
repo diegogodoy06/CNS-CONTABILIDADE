@@ -32,6 +32,8 @@ import {
   Select,
   Divider,
   Avatar,
+  CircularProgress,
+  Autocomplete,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 import {
@@ -48,8 +50,25 @@ import {
   FileDownload,
   ContentCopy,
   CloudSync,
+  History,
+  Receipt,
+  LocalOffer,
 } from '@mui/icons-material';
 import type { Tomador } from '../../../types';
+import { HistoricoTomadorDialog, ConsultaCNPJDialog } from '../components';
+import { cepService } from '../../../services/cepService';
+
+// Tags disponíveis
+const tagsDisponiveis = [
+  { id: '1', label: 'VIP', color: '#f59e0b' },
+  { id: '2', label: 'Recorrente', color: '#10b981' },
+  { id: '3', label: 'Novo', color: '#3b82f6' },
+  { id: '4', label: 'Inadimplente', color: '#ef4444' },
+  { id: '5', label: 'Governo', color: '#8b5cf6' },
+  { id: '6', label: 'Educação', color: '#06b6d4' },
+  { id: '7', label: 'Saúde', color: '#ec4899' },
+  { id: '8', label: 'Tecnologia', color: '#6366f1' },
+];
 
 // Mock data
 const mockTomadores: Tomador[] = [
@@ -76,6 +95,7 @@ const mockTomadores: Tomador[] = [
     ativo: true,
     totalNotas: 15,
     faturamentoTotal: 67500,
+    tags: ['Tecnologia', 'VIP', 'Recorrente'],
     createdAt: '2024-01-15T10:00:00',
     updatedAt: '2024-12-01T14:30:00',
   },
@@ -101,6 +121,7 @@ const mockTomadores: Tomador[] = [
     ativo: true,
     totalNotas: 8,
     faturamentoTotal: 32000,
+    tags: ['Recorrente'],
     createdAt: '2024-03-20T09:00:00',
     updatedAt: '2024-11-15T11:00:00',
   },
@@ -124,6 +145,7 @@ const mockTomadores: Tomador[] = [
     ativo: true,
     totalNotas: 3,
     faturamentoTotal: 2550,
+    tags: ['Novo'],
     createdAt: '2024-06-01T14:00:00',
     updatedAt: '2024-12-05T16:00:00',
   },
@@ -147,6 +169,7 @@ const mockTomadores: Tomador[] = [
     ativo: true,
     totalNotas: 5,
     faturamentoTotal: 12500,
+    tags: ['Tecnologia', 'Novo'],
     createdAt: '2024-05-10T08:00:00',
     updatedAt: '2024-12-08T10:00:00',
   },
@@ -170,6 +193,7 @@ const mockTomadores: Tomador[] = [
     ativo: false,
     totalNotas: 2,
     faturamentoTotal: 1800,
+    tags: ['Inadimplente'],
     createdAt: '2024-02-20T11:00:00',
     updatedAt: '2024-09-10T09:00:00',
   },
@@ -195,6 +219,14 @@ const TomadoresPage: React.FC = () => {
   const [selectedTomador, setSelectedTomador] = useState<Tomador | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'create' | 'edit' | 'view'>('create');
+  
+  // Novos estados para dialogs
+  const [historicoDialogOpen, setHistoricoDialogOpen] = useState(false);
+  const [consultaCNPJDialogOpen, setConsultaCNPJDialogOpen] = useState(false);
+  const [tomadorHistorico, setTomadorHistorico] = useState<Tomador | null>(null);
+  const [cepLoading, setCepLoading] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -299,6 +331,34 @@ const TomadoresPage: React.FC = () => {
     setFormData({ ...formData, tipo: event.target.value as 'pj' | 'pf' });
   };
 
+  const handleBuscarCEP = async () => {
+    const cep = formData.cep.replace(/\D/g, '');
+    if (cep.length !== 8) {
+      alert('CEP deve ter 8 dígitos');
+      return;
+    }
+
+    setCepLoading(true);
+    try {
+      const endereco = await cepService.consultar(cep);
+      if (endereco) {
+        setFormData(prev => ({
+          ...prev,
+          logradouro: endereco.logradouro,
+          bairro: endereco.bairro,
+          cidade: endereco.cidade,
+          uf: endereco.uf,
+        }));
+      } else {
+        alert('CEP não encontrado');
+      }
+    } catch {
+      alert('Erro ao consultar CEP');
+    } finally {
+      setCepLoading(false);
+    }
+  };
+
   const dialogTitle = {
     create: 'Novo Tomador',
     edit: 'Editar Tomador',
@@ -318,7 +378,11 @@ const TomadoresPage: React.FC = () => {
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="outlined" startIcon={<CloudSync />}>
+          <Button 
+            variant="outlined" 
+            startIcon={<CloudSync />}
+            onClick={() => setConsultaCNPJDialogOpen(true)}
+          >
             Importar CNPJ
           </Button>
           <Button variant="outlined" startIcon={<FilterList />}>
@@ -440,7 +504,7 @@ const TomadoresPage: React.FC = () => {
                 <TableRow>
                   <TableCell>Tomador</TableCell>
                   <TableCell>Documento</TableCell>
-                  <TableCell>Contato</TableCell>
+                  <TableCell>Tags</TableCell>
                   <TableCell>Notas Emitidas</TableCell>
                   <TableCell>Faturamento</TableCell>
                   <TableCell>Status</TableCell>
@@ -548,6 +612,21 @@ const TomadoresPage: React.FC = () => {
           <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
           Editar
         </MenuItem>
+        <MenuItem onClick={() => {
+          if (selectedTomador) {
+            setTomadorHistorico(selectedTomador);
+            setHistoricoDialogOpen(true);
+          }
+          handleMenuClose();
+        }}>
+          <ListItemIcon><History fontSize="small" /></ListItemIcon>
+          Ver Histórico
+        </MenuItem>
+        <MenuItem onClick={handleMenuClose}>
+          <ListItemIcon><Receipt fontSize="small" /></ListItemIcon>
+          Emitir Nota
+        </MenuItem>
+        <Divider />
         <MenuItem onClick={handleMenuClose}>
           <ListItemIcon><ContentCopy fontSize="small" /></ListItemIcon>
           Copiar CNPJ/CPF
@@ -682,6 +761,21 @@ const TomadoresPage: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
                   disabled={dialogMode === 'view'}
                   placeholder="00000-000"
+                  InputProps={{
+                    endAdornment: dialogMode !== 'view' && (
+                      <InputAdornment position="end">
+                        <Tooltip title="Buscar endereço pelo CEP">
+                          <IconButton 
+                            size="small" 
+                            onClick={handleBuscarCEP}
+                            disabled={cepLoading}
+                          >
+                            {cepLoading ? <CircularProgress size={20} /> : <Search />}
+                          </IconButton>
+                        </Tooltip>
+                      </InputAdornment>
+                    ),
+                  }}
                 />
               </Grid>
               <Grid item xs={12} md={7}>
@@ -764,6 +858,47 @@ const TomadoresPage: React.FC = () => {
                   placeholder="(00) 00000-0000"
                 />
               </Grid>
+
+              {/* Tags */}
+              <Grid item xs={12}>
+                <Divider sx={{ my: 1 }}>Tags</Divider>
+              </Grid>
+              <Grid item xs={12}>
+                <Autocomplete
+                  multiple
+                  freeSolo
+                  options={tagsDisponiveis.map(t => t.label)}
+                  value={selectedTags}
+                  onChange={(_, newValue) => setSelectedTags(newValue)}
+                  disabled={dialogMode === 'view'}
+                  renderTags={(value, getTagProps) =>
+                    value.map((option, index) => {
+                      const tagConfig = tagsDisponiveis.find(t => t.label === option);
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return (
+                        <Chip
+                          key={key}
+                          label={option}
+                          size="small"
+                          {...tagProps}
+                          sx={{
+                            bgcolor: tagConfig?.color || '#6b7280',
+                            color: 'white',
+                          }}
+                        />
+                      );
+                    })
+                  }
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Tags"
+                      placeholder="Adicionar tags..."
+                      helperText="Selecione tags existentes ou digite para criar novas"
+                    />
+                  )}
+                />
+              </Grid>
             </Grid>
           </Box>
         </DialogContent>
@@ -778,6 +913,44 @@ const TomadoresPage: React.FC = () => {
           )}
         </DialogActions>
       </Dialog>
+
+      {/* Dialog de Histórico do Tomador */}
+      <HistoricoTomadorDialog
+        open={historicoDialogOpen}
+        onClose={() => {
+          setHistoricoDialogOpen(false);
+          setTomadorHistorico(null);
+        }}
+        tomador={tomadorHistorico}
+      />
+
+      {/* Dialog de Consulta CNPJ */}
+      <ConsultaCNPJDialog
+        open={consultaCNPJDialogOpen}
+        onClose={() => setConsultaCNPJDialogOpen(false)}
+        onImportar={(dados) => {
+          setFormData({
+            tipo: dados.tipo || 'pj',
+            documento: dados.documento || '',
+            razaoSocial: dados.razaoSocial || '',
+            nomeFantasia: dados.nomeFantasia || '',
+            nome: dados.nome || '',
+            inscricaoMunicipal: dados.inscricaoMunicipal || '',
+            inscricaoEstadual: dados.inscricaoEstadual || '',
+            cep: dados.endereco?.cep || '',
+            logradouro: dados.endereco?.logradouro || '',
+            numero: dados.endereco?.numero || '',
+            complemento: dados.endereco?.complemento || '',
+            bairro: dados.endereco?.bairro || '',
+            cidade: dados.endereco?.cidade || '',
+            uf: dados.endereco?.uf || '',
+            email: dados.email || '',
+            telefone: dados.telefone || '',
+          });
+          setDialogMode('create');
+          setDialogOpen(true);
+        }}
+      />
     </Box>
   );
 };

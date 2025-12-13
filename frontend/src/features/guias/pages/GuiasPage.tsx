@@ -12,6 +12,8 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
+  ListItemText,
+  Divider,
   Table,
   TableBody,
   TableCell,
@@ -45,10 +47,13 @@ import {
   Close,
   AttachFile,
   UploadFile,
+  PriceCheck,
+  History,
 } from '@mui/icons-material';
 import { format, parseISO, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Guia, GuiaStatus, TipoGuia } from '../../../types';
+import { MarcarPagaDialog, HistoricoPagamentosDialog } from '../components';
 
 // Mock data
 const mockGuias: Guia[] = [
@@ -155,6 +160,8 @@ const GuiasPage: React.FC = () => {
   const [selectedGuia, setSelectedGuia] = useState<Guia | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [marcarPagaDialogOpen, setMarcarPagaDialogOpen] = useState(false);
+  const [historicoDialogOpen, setHistoricoDialogOpen] = useState(false);
 
   const tabs = [
     { label: 'Todas', count: mockGuias.length },
@@ -209,6 +216,18 @@ const GuiasPage: React.FC = () => {
     handleMenuClose();
   };
 
+  const handleMarcarPagaClick = (guia: Guia) => {
+    setSelectedGuia(guia);
+    setMarcarPagaDialogOpen(true);
+    handleMenuClose();
+  };
+
+  const handleConfirmPagamento = async (guiaId: string, dados: { dataPagamento: string; formaPagamento: string; valorPago: number; comprovante?: File; observacao?: string }) => {
+    console.log('Pagamento confirmado:', guiaId, dados);
+    setMarcarPagaDialogOpen(false);
+    // Aqui seria feita a chamada à API para atualizar o status da guia
+  };
+
   const getDaysUntilDue = (dateStr: string): number => {
     const date = parseISO(dateStr);
     const today = new Date();
@@ -230,6 +249,13 @@ const GuiasPage: React.FC = () => {
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button 
+            variant="outlined" 
+            startIcon={<History />}
+            onClick={() => setHistoricoDialogOpen(true)}
+          >
+            Histórico
+          </Button>
           <Button variant="outlined" startIcon={<CalendarToday />}>
             Calendário
           </Button>
@@ -489,23 +515,35 @@ const GuiasPage: React.FC = () => {
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
         <MenuItem onClick={handleMenuClose}>
           <ListItemIcon><Visibility fontSize="small" /></ListItemIcon>
-          Visualizar
+          <ListItemText>Visualizar</ListItemText>
         </MenuItem>
         <MenuItem onClick={handleMenuClose}>
           <ListItemIcon><Download fontSize="small" /></ListItemIcon>
-          Download PDF
+          <ListItemText>Download PDF</ListItemText>
         </MenuItem>
-        {selectedGuia?.status === 'pendente' && (
-          <MenuItem onClick={() => selectedGuia && handleUploadClick(selectedGuia)}>
-            <ListItemIcon><CloudUpload fontSize="small" /></ListItemIcon>
-            Enviar Comprovante
-          </MenuItem>
+        {(selectedGuia?.status === 'pendente' || selectedGuia?.status === 'vencida') && (
+          <>
+            <Divider />
+            <MenuItem onClick={() => selectedGuia && handleMarcarPagaClick(selectedGuia)}>
+              <ListItemIcon><PriceCheck fontSize="small" /></ListItemIcon>
+              <ListItemText>Marcar como Paga</ListItemText>
+            </MenuItem>
+            <MenuItem onClick={() => selectedGuia && handleUploadClick(selectedGuia)}>
+              <ListItemIcon><CloudUpload fontSize="small" /></ListItemIcon>
+              <ListItemText>Enviar Comprovante</ListItemText>
+            </MenuItem>
+          </>
         )}
-        {selectedGuia?.status === 'paga' && selectedGuia.comprovanteUrl && (
-          <MenuItem onClick={handleMenuClose}>
-            <ListItemIcon><AttachFile fontSize="small" /></ListItemIcon>
-            Ver Comprovante
-          </MenuItem>
+        {selectedGuia?.status === 'paga' && (
+          <>
+            <Divider />
+            {selectedGuia.comprovanteUrl && (
+              <MenuItem onClick={handleMenuClose}>
+                <ListItemIcon><AttachFile fontSize="small" /></ListItemIcon>
+                <ListItemText>Ver Comprovante</ListItemText>
+              </MenuItem>
+            )}
+          </>
         )}
       </Menu>
 
@@ -601,6 +639,20 @@ const GuiasPage: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Marcar como Paga Dialog */}
+      <MarcarPagaDialog
+        open={marcarPagaDialogOpen}
+        onClose={() => setMarcarPagaDialogOpen(false)}
+        onConfirmar={handleConfirmPagamento}
+        guia={selectedGuia}
+      />
+
+      {/* Histórico de Pagamentos Dialog */}
+      <HistoricoPagamentosDialog
+        open={historicoDialogOpen}
+        onClose={() => setHistoricoDialogOpen(false)}
+      />
     </Box>
   );
 };

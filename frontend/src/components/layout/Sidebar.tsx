@@ -31,6 +31,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Drafts,
+  Group,
 } from '@mui/icons-material';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import type { RootState } from '../../store';
@@ -50,7 +51,7 @@ const mainNavItems: NavItem[] = [
   { path: '/dashboard', label: 'Início', icon: <Dashboard /> },
   { path: '/notas', label: 'Notas Fiscais', icon: <Receipt /> },
   { path: '/notas/rascunhos', label: 'Rascunhos', icon: <Drafts />, badge: 5 },
-  { path: '/guias', label: 'Impostos', icon: <Payment /> },
+  { path: '/guias', label: 'Impostos', icon: <Payment />, badge: 3 }, // 3 guias pendentes
   { path: '/documentos', label: 'Documentos', icon: <Description /> },
   { path: '/tomadores', label: 'Tomadores', icon: <People /> },
   { path: '/calendario', label: 'Calendário', icon: <CalendarMonth /> },
@@ -58,6 +59,7 @@ const mainNavItems: NavItem[] = [
 ];
 
 const bottomNavItems: NavItem[] = [
+  { path: '/usuarios', label: 'Usuários', icon: <Group /> },
   { path: '/configuracoes', label: 'Configurações', icon: <Settings /> },
   { path: '/ajuda', label: 'Central de Ajuda', icon: <Help /> },
 ];
