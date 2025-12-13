@@ -226,7 +226,7 @@ const TomadoresPage: React.FC = () => {
   const [tomadorHistorico, setTomadorHistorico] = useState<Tomador | null>(null);
   const [cepLoading, setCepLoading] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -269,7 +269,11 @@ const TomadoresPage: React.FC = () => {
     if (activeTab === 2) matchesTab = tomador.tipo === 'pf';
     if (activeTab === 3) matchesTab = !tomador.ativo;
     
-    return matchesSearch && matchesTab;
+    // Filtro por tags
+    const matchesTags = tagFilter.length === 0 || 
+      (tomador.tags && tagFilter.some(tag => tomador.tags?.includes(tag)));
+    
+    return matchesSearch && matchesTab && matchesTags;
   });
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, tomador: Tomador) => {
@@ -480,7 +484,7 @@ const TomadoresPage: React.FC = () => {
 
         <CardContent>
           {/* Search Bar */}
-          <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
+          <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
             <TextField
               placeholder="Buscar por nome, CNPJ/CPF, email..."
               size="small"
@@ -493,7 +497,46 @@ const TomadoresPage: React.FC = () => {
                   </InputAdornment>
                 ),
               }}
-              sx={{ width: 400 }}
+              sx={{ width: 350 }}
+            />
+            <Autocomplete
+              multiple
+              size="small"
+              options={tagsDisponiveis.map(t => t.label)}
+              value={tagFilter}
+              onChange={(_, newValue) => setTagFilter(newValue)}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  placeholder="Filtrar por tags..."
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <>
+                        <InputAdornment position="start">
+                          <LocalOffer color="action" fontSize="small" />
+                        </InputAdornment>
+                        {params.InputProps.startAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              renderTags={(value, getTagProps) =>
+                value.map((tag, index) => (
+                  <Chip
+                    {...getTagProps({ index })}
+                    key={tag}
+                    label={tag}
+                    size="small"
+                    sx={{
+                      bgcolor: tagsDisponiveis.find(t => t.label === tag)?.color || '#9e9e9e',
+                      color: 'white',
+                    }}
+                  />
+                ))
+              }
+              sx={{ minWidth: 280 }}
             />
           </Box>
 
@@ -542,10 +585,33 @@ const TomadoresPage: React.FC = () => {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2">{tomador.email}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {tomador.telefone}
-                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', maxWidth: 200 }}>
+                          {tomador.tags && tomador.tags.slice(0, 3).map((tag, idx) => (
+                            <Chip
+                              key={idx}
+                              label={tag}
+                              size="small"
+                              icon={<LocalOffer sx={{ fontSize: '14px !important' }} />}
+                              sx={{ 
+                                fontSize: '0.7rem',
+                                height: 22,
+                                bgcolor: tagsDisponiveis.find(t => t.label === tag)?.color || '#9e9e9e',
+                                color: 'white',
+                                '& .MuiChip-icon': { color: 'white' }
+                              }}
+                            />
+                          ))}
+                          {tomador.tags && tomador.tags.length > 3 && (
+                            <Chip
+                              label={`+${tomador.tags.length - 3}`}
+                              size="small"
+                              sx={{ fontSize: '0.7rem', height: 22 }}
+                            />
+                          )}
+                          {(!tomador.tags || tomador.tags.length === 0) && (
+                            <Typography variant="caption" color="text.secondary">-</Typography>
+                          )}
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>

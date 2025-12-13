@@ -2,7 +2,7 @@
 
 ## Status Geral do Projeto
 
-**Última atualização:** 12/12/2025  
+**Última atualização:** 13/12/2025  
 **Versão:** 1.0.0-alpha
 
 ---
@@ -142,12 +142,13 @@
   - [x] Consulta Receita Federal (CNPJ)
   - [x] Dialog com visualização completa dos dados
   - [x] Importação automática para formulário
-  - [ ] Autocomplete de endereço (CEP)
+  - [x] Autocomplete de endereço (CEP via ViaCEP)
 
-- [x] **RF-TOM-003: Gestão de Tomadores**
+- [x] **RF-TOM-003: Gestão de Tomadores** ✅ IMPLEMENTADO
   - [x] Listagem com busca e filtros
   - [x] Modal de edição
-  - [ ] Agrupamento por tags
+  - [x] Sistema de tags coloridas
+  - [x] Filtro por múltiplas tags
 
 - [x] **RF-TOM-004: Histórico** ✅ IMPLEMENTADO
   - [x] Total de notas emitidas
