@@ -7,6 +7,7 @@ import guiasReducer from './slices/guiasSlice';
 import tomadoresReducer from './slices/tomadoresSlice';
 import notificationsReducer from './slices/notificationsSlice';
 import uiReducer from './slices/uiSlice';
+import widgetsReducer from './slices/widgetsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -18,6 +19,7 @@ export const store = configureStore({
     tomadores: tomadoresReducer,
     notifications: notificationsReducer,
     ui: uiReducer,
+    widgets: widgetsReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

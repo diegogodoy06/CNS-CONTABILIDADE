@@ -29,6 +29,7 @@ import {
   FileDownload,
   Refresh,
   Settings,
+  Tune,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../../../store/hooks';
@@ -41,6 +42,7 @@ import {
   CentralNotificacoes,
   DocumentosRecentesWidget,
   AtalhosRapidosFAB,
+  WidgetConfigDrawer,
 } from '../components';
 
 // Card Header Component
@@ -210,7 +212,18 @@ const DashboardPage: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { company } = useAppSelector((state: RootState) => state.auth);
+  const widgets = useAppSelector((state: RootState) => state.widgets.widgets);
   const [activeTab, setActiveTab] = useState(0);
+  const [showWidgetConfig, setShowWidgetConfig] = useState(false);
+
+  // Widgets ordenados e filtrados por visibilidade
+  const kpiWidgets = widgets
+    .filter(w => w.size === 'small' && w.visible)
+    .sort((a, b) => a.order - b.order);
+  
+  const mainWidgets = widgets
+    .filter(w => w.size !== 'small' && w.visible)
+    .sort((a, b) => a.order - b.order);
 
   // Mock data
   const notasFiscais = {
@@ -248,6 +261,175 @@ const DashboardPage: React.FC = () => {
     }).format(value);
   };
 
+  // Renderizador de KPI Cards
+  const renderKpiCard = (widgetId: string) => {
+    switch (widgetId) {
+      case 'kpi-faturamento':
+        return (
+          <KPICard
+            title="Faturamento do Mês"
+            value={formatCurrency(notasFiscais.valorTotal)}
+            subtitle="vs. mês anterior"
+            icon={<TrendingUp />}
+            color={theme.palette.success.main}
+            trend={{ value: 12, positive: true }}
+          />
+        );
+      case 'kpi-notas':
+        return (
+          <KPICard
+            title="Notas Emitidas"
+            value={notasFiscais.emitidas.toString()}
+            subtitle="este mês"
+            icon={<Receipt />}
+            color={theme.palette.primary.main}
+            trend={{ value: 8, positive: true }}
+          />
+        );
+      case 'kpi-guias':
+        return (
+          <KPICard
+            title="Impostos Pendentes"
+            value={formatCurrency(impostos.valorPendente)}
+            subtitle="próximo venc. 20/01"
+            icon={<Payment />}
+            color={theme.palette.warning.main}
+          />
+        );
+      case 'kpi-impostos':
+        return (
+          <KPICard
+            title="Total de Impostos"
+            value={formatCurrency(impostos.totalMes)}
+            subtitle="dezembro/2024"
+            icon={<AccountBalance />}
+            color={theme.palette.info.main}
+            trend={{ value: 3, positive: false }}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  // Renderizador de Widgets Principais
+  const renderMainWidget = (widgetId: string, size: string) => {
+    const gridSize = size === 'large' ? { xs: 12, lg: 8 } : { xs: 12, md: 6, lg: 4 };
+    
+    switch (widgetId) {
+      case 'chart-faturamento':
+        return (
+          <Grid item {...gridSize} key={widgetId}>
+            <Card sx={{ height: '100%' }}>
+              <DashboardCardHeader
+                icon={<TrendingUp />}
+                title="Evolução Financeira"
+                subtitle="Últimos 6 meses"
+                color="success.main"
+                action={
+                  <Tabs
+                    value={activeTab}
+                    onChange={(_, v) => setActiveTab(v)}
+                    sx={{ minHeight: 32 }}
+                  >
+                    <Tab label="Faturamento" sx={{ minHeight: 32, py: 0 }} />
+                    <Tab label="Impostos" sx={{ minHeight: 32, py: 0 }} />
+                  </Tabs>
+                }
+              />
+              <CardContent>
+                {activeTab === 0 ? <GraficoFaturamento /> : <GraficoImpostos />}
+              </CardContent>
+            </Card>
+          </Grid>
+        );
+      case 'chart-impostos':
+        return (
+          <Grid item xs={12} lg={4} key={widgetId}>
+            <Card sx={{ height: '100%' }}>
+              <CardContent>
+                <CentralNotificacoes compacto />
+              </CardContent>
+            </Card>
+          </Grid>
+        );
+      case 'widget-calendario':
+        return (
+          <Grid item xs={12} md={6} lg={4} key={widgetId}>
+            <Card sx={{ height: '100%' }}>
+              <DashboardCardHeader
+                icon={<Payment />}
+                title="Impostos"
+                subtitle="Guias e tributos"
+                color="warning.main"
+                action={
+                  <Button size="small" endIcon={<ArrowForward />} onClick={() => navigate('/guias')}>
+                    Ver todas
+                  </Button>
+                }
+              />
+              <CardContent>
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <StatItem label="Pendentes" value={impostos.pendentes} color="warning.main" />
+                  </Grid>
+                  <Grid item xs={6}>
+                    <StatItem label="Pagos este mês" value={impostos.pagos} color="success.main" />
+                  </Grid>
+                </Grid>
+                <Box sx={{ bgcolor: alpha(theme.palette.warning.main, 0.1), borderRadius: 2, p: 2, mt: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <Warning sx={{ color: 'warning.main', fontSize: 20 }} />
+                    <Typography variant="subtitle2" color="warning.main">Próximo vencimento</Typography>
+                  </Box>
+                  <Typography variant="h5" fontWeight={700}>{impostos.proximoVencimento}</Typography>
+                  <Typography variant="body2" color="text.secondary">Valor: {formatCurrency(impostos.valorPendente)}</Typography>
+                </Box>
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>Calendário de obrigações</Typography>
+                  {obrigacoes.map((obrigacao, index) => (
+                    <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1, borderBottom: index < obrigacoes.length - 1 ? '1px solid' : 'none', borderColor: 'divider' }}>
+                      <Avatar sx={{ width: 36, height: 36, bgcolor: obrigacao.status === 'proximo' ? 'warning.main' : obrigacao.status === 'pendente' ? alpha(theme.palette.error.main, 0.1) : alpha(theme.palette.grey[500], 0.1), color: obrigacao.status === 'proximo' ? '#fff' : obrigacao.status === 'pendente' ? 'error.main' : 'text.secondary', fontSize: '0.875rem', fontWeight: 600 }}>
+                        {obrigacao.dia}
+                      </Avatar>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="body2" fontWeight={500}>{obrigacao.descricao}</Typography>
+                        <Typography variant="caption" color="text.secondary">Dia {obrigacao.dia}/01</Typography>
+                      </Box>
+                      {obrigacao.status === 'proximo' && <Chip size="small" label="Próximo" color="warning" sx={{ height: 24 }} />}
+                    </Box>
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        );
+      case 'widget-documentos':
+        return (
+          <Grid item xs={12} md={6} lg={4} key={widgetId}>
+            <Card sx={{ height: '100%' }}>
+              <DashboardCardHeader
+                icon={<FileDownload />}
+                title="Documentos"
+                subtitle="Arquivos recentes"
+                color="info.main"
+                action={
+                  <Button size="small" endIcon={<ArrowForward />} onClick={() => navigate('/documentos')}>
+                    Ver todos
+                  </Button>
+                }
+              />
+              <CardContent>
+                <DocumentosRecentesWidget limite={5} />
+              </CardContent>
+            </Card>
+          </Grid>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <Box>
       {/* Welcome Section */}
@@ -266,98 +448,28 @@ const DashboardPage: React.FC = () => {
               <Refresh />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Personalizar widgets">
-            <IconButton size="small">
-              <Settings />
+          <Tooltip title="Personalizar dashboard">
+            <IconButton size="small" onClick={() => setShowWidgetConfig(true)}>
+              <Tune />
             </IconButton>
           </Tooltip>
         </Box>
       </Box>
 
-      {/* KPI Cards Row */}
+      {/* KPI Cards Row - Renderização dinâmica por ordem */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <KPICard
-            title="Faturamento do Mês"
-            value={formatCurrency(notasFiscais.valorTotal)}
-            subtitle="vs. mês anterior"
-            icon={<TrendingUp />}
-            color={theme.palette.success.main}
-            trend={{ value: 12, positive: true }}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <KPICard
-            title="Notas Emitidas"
-            value={notasFiscais.emitidas.toString()}
-            subtitle="este mês"
-            icon={<Receipt />}
-            color={theme.palette.primary.main}
-            trend={{ value: 8, positive: true }}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <KPICard
-            title="Impostos Pendentes"
-            value={formatCurrency(impostos.valorPendente)}
-            subtitle="próximo venc. 20/01"
-            icon={<Payment />}
-            color={theme.palette.warning.main}
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <KPICard
-            title="Total de Impostos"
-            value={formatCurrency(impostos.totalMes)}
-            subtitle="dezembro/2024"
-            icon={<AccountBalance />}
-            color={theme.palette.info.main}
-            trend={{ value: 3, positive: false }}
-          />
-        </Grid>
+        {kpiWidgets.map((widget) => (
+          <Grid item xs={12} sm={6} md={3} key={widget.id}>
+            {renderKpiCard(widget.id)}
+          </Grid>
+        ))}
       </Grid>
 
-      {/* Main Grid */}
+      {/* Main Widgets - Renderização dinâmica por ordem */}
       <Grid container spacing={3}>
-        {/* Gráfico de Faturamento - Full Width */}
-        <Grid item xs={12} lg={8}>
-          <Card sx={{ height: '100%' }}>
-            <DashboardCardHeader
-              icon={<TrendingUp />}
-              title="Evolução Financeira"
-              subtitle="Últimos 6 meses"
-              color="success.main"
-              action={
-                <Tabs
-                  value={activeTab}
-                  onChange={(_, v) => setActiveTab(v)}
-                  sx={{ minHeight: 32 }}
-                >
-                  <Tab label="Faturamento" sx={{ minHeight: 32, py: 0 }} />
-                  <Tab label="Impostos" sx={{ minHeight: 32, py: 0 }} />
-                </Tabs>
-              }
-            />
-            <CardContent>
-              {activeTab === 0 ? (
-                <GraficoFaturamento />
-              ) : (
-                <GraficoImpostos />
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
+        {mainWidgets.map((widget) => renderMainWidget(widget.id, widget.size))}
 
-        {/* Notificações */}
-        <Grid item xs={12} lg={4}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <CentralNotificacoes compacto />
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Notas Fiscais Card */}
+        {/* Notas Fiscais Card - Fixo */}
         <Grid item xs={12} md={6} lg={4}>
           <Card sx={{ height: '100%' }}>
             <DashboardCardHeader
@@ -452,149 +564,6 @@ const DashboardPage: React.FC = () => {
           </Card>
         </Grid>
 
-        {/* Impostos Card */}
-        <Grid item xs={12} md={6} lg={4}>
-          <Card sx={{ height: '100%' }}>
-            <DashboardCardHeader
-              icon={<Payment />}
-              title="Impostos"
-              subtitle="Guias e tributos"
-              color="warning.main"
-              action={
-                <Button
-                  size="small"
-                  endIcon={<ArrowForward />}
-                  onClick={() => navigate('/guias')}
-                >
-                  Ver todas
-                </Button>
-              }
-            />
-            <CardContent>
-              <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <StatItem
-                    label="Pendentes"
-                    value={impostos.pendentes}
-                    color="warning.main"
-                  />
-                </Grid>
-                <Grid item xs={6}>
-                  <StatItem
-                    label="Pagos este mês"
-                    value={impostos.pagos}
-                    color="success.main"
-                  />
-                </Grid>
-              </Grid>
-
-              <Box
-                sx={{
-                  bgcolor: alpha(theme.palette.warning.main, 0.1),
-                  borderRadius: 2,
-                  p: 2,
-                  mt: 2,
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                  <Warning sx={{ color: 'warning.main', fontSize: 20 }} />
-                  <Typography variant="subtitle2" color="warning.main">
-                    Próximo vencimento
-                  </Typography>
-                </Box>
-                <Typography variant="h5" fontWeight={700}>
-                  {impostos.proximoVencimento}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Valor: {formatCurrency(impostos.valorPendente)}
-                </Typography>
-              </Box>
-
-              <Box sx={{ mt: 3 }}>
-                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>
-                  Calendário de obrigações
-                </Typography>
-                {obrigacoes.map((obrigacao, index) => (
-                  <Box
-                    key={index}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 2,
-                      py: 1,
-                      borderBottom: index < obrigacoes.length - 1 ? '1px solid' : 'none',
-                      borderColor: 'divider',
-                    }}
-                  >
-                    <Avatar
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        bgcolor:
-                          obrigacao.status === 'proximo'
-                            ? 'warning.main'
-                            : obrigacao.status === 'pendente'
-                            ? alpha(theme.palette.error.main, 0.1)
-                            : alpha(theme.palette.grey[500], 0.1),
-                        color:
-                          obrigacao.status === 'proximo'
-                            ? '#fff'
-                            : obrigacao.status === 'pendente'
-                            ? 'error.main'
-                            : 'text.secondary',
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {obrigacao.dia}
-                    </Avatar>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="body2" fontWeight={500}>
-                        {obrigacao.descricao}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Dia {obrigacao.dia}/01
-                      </Typography>
-                    </Box>
-                    {obrigacao.status === 'proximo' && (
-                      <Chip
-                        size="small"
-                        label="Próximo"
-                        color="warning"
-                        sx={{ height: 24 }}
-                      />
-                    )}
-                  </Box>
-                ))}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Documentos Recentes */}
-        <Grid item xs={12} md={6} lg={4}>
-          <Card sx={{ height: '100%' }}>
-            <DashboardCardHeader
-              icon={<FileDownload />}
-              title="Documentos"
-              subtitle="Arquivos recentes"
-              color="info.main"
-              action={
-                <Button
-                  size="small"
-                  endIcon={<ArrowForward />}
-                  onClick={() => navigate('/documentos')}
-                >
-                  Ver todos
-                </Button>
-              }
-            />
-            <CardContent>
-              <DocumentosRecentesWidget limite={5} />
-            </CardContent>
-          </Card>
-        </Grid>
-
         {/* Quick Actions Row */}
         <Grid item xs={12}>
           <Card>
@@ -613,7 +582,7 @@ const DashboardPage: React.FC = () => {
                     <Button variant="outlined" onClick={() => navigate('/ajuda')}>
                       Central de Ajuda
                     </Button>
-                    <Button variant="contained">
+                    <Button variant="contained" onClick={() => navigate('/mensagens')}>
                       Falar com Contador
                     </Button>
                   </Box>
@@ -626,6 +595,12 @@ const DashboardPage: React.FC = () => {
 
       {/* FAB de Ações Rápidas */}
       <AtalhosRapidosFAB />
+
+      {/* Drawer de Configuração de Widgets */}
+      <WidgetConfigDrawer 
+        open={showWidgetConfig} 
+        onClose={() => setShowWidgetConfig(false)} 
+      />
     </Box>
   );
 };

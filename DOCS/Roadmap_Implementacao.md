@@ -59,26 +59,26 @@
 
 ---
 
-#### 2. Dashboard (RF-DASH)
+#### 2. Dashboard (RF-DASH) ✅ IMPLEMENTADO
 
-- [ ] **RF-DASH-001: Painel Principal**
+- [x] **RF-DASH-001: Painel Principal**
   - [x] Resumo financeiro do mês
   - [x] Widget de Notas Fiscais
   - [x] Widget de Guias pendentes
-  - [ ] Widget de Documentos recentes
-  - [ ] Central de Notificações integrada
-  - [ ] Gráficos interativos (Recharts)
+  - [x] Widget de Documentos recentes
+  - [x] Central de Notificações integrada
+  - [x] Gráficos interativos (Recharts)
 
-- [ ] **RF-DASH-002: Widgets Personalizáveis**
-  - [ ] Drag-and-drop para reorganizar
-  - [ ] Ocultar/exibir widgets
-  - [ ] Salvar preferências no localStorage
+- [x] **RF-DASH-002: Widgets Personalizáveis**
+  - [x] Drag-and-drop para reorganizar
+  - [x] Ocultar/exibir widgets
+  - [x] Salvar preferências no localStorage
 
-- [ ] **RF-DASH-003: Atalhos Rápidos (FAB)**
-  - [ ] Botão flutuante com menu
-  - [ ] Emitir NF-e rápido
-  - [ ] Upload de documento
-  - [ ] Falar com contador
+- [x] **RF-DASH-003: Atalhos Rápidos (FAB)**
+  - [x] Botão flutuante com menu
+  - [x] Emitir NF-e rápido
+  - [x] Upload de documento
+  - [x] Falar com contador
 
 ---
 
