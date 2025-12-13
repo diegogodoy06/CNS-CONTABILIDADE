@@ -313,37 +313,45 @@
 
 ## 🖥️ FRONTEND - Portal Administrativo (Escritório)
 
-### 🔴 Não Iniciado
+### ✅ Em Desenvolvimento (Sprint 5)
 
 #### 11. Painel do Contador (RF-ADM)
 
-- [ ] **RF-ADM-001: Visão Geral de Clientes**
-  - [ ] Dashboard com métricas agregadas
-  - [ ] Listagem de empresas clientes
-  - [ ] Status por cliente (Ativo, Inadimplente, Bloqueado)
-  - [ ] Alertas por cliente
-  - [ ] Filtros e busca avançada
+- [x] **RF-ADM-001: Visão Geral de Clientes** ✅ IMPLEMENTADO
+  - [x] Dashboard com métricas agregadas
+  - [x] Cards: Clientes ativos, Faturamento, Guias pendentes, Tickets
+  - [x] Gráfico de faturamento semanal (AreaChart)
+  - [x] Gráfico de clientes por regime tributário (PieChart)
+  - [x] Lista de alertas críticos
+  - [x] Lista de atividades recentes
+  - [x] Tabela de clientes com pendências
 
-- [ ] **RF-ADM-002: Gestão de Clientes**
-  - [ ] Cadastro de nova empresa
-  - [ ] Edição de dados fiscais
+- [x] **RF-ADM-002: Gestão de Clientes** ✅ IMPLEMENTADO
+  - [x] Listagem de empresas clientes com busca
+  - [x] Filtros por status (Ativo, Inadimplente, Bloqueado)
+  - [x] Abas por regime tributário
+  - [x] Dialog de detalhes do cliente
+  - [x] Ações: Visualizar, Editar, Bloquear/Desbloquear
+  - [x] Métricas por cliente (notas, guias, tickets)
+  - [ ] Cadastro de nova empresa (formulário completo)
   - [ ] Upload em nome do cliente
-  - [ ] Envio de guias em lote
-  - [ ] Bloqueio/desbloqueio de acesso
-  - [ ] Configurações por cliente
 
-- [ ] **RF-ADM-003: Monitoramento**
-  - [ ] Notas emitidas (todas empresas)
-  - [ ] Guias vencendo
-  - [ ] Tickets abertos
-  - [ ] Alertas críticos
-  - [ ] Log de atividades
+- [x] **RF-ADM-003: Monitoramento** ✅ IMPLEMENTADO
+  - [x] Central de Alertas com abas (Crítico, Importante, Informativo)
+  - [x] Filtro de alertas por categoria
+  - [x] Seleção em lote de alertas
+  - [x] Marcar como lido / Marcar como resolvido
+  - [x] Badge de contador no menu
+  - [ ] Log detalhado de atividades
 
-- [ ] **RF-ADM-004: Comunicação em Massa**
-  - [ ] Envio de comunicados
-  - [ ] Segmentação de clientes
-  - [ ] Agendamento de envios
-  - [ ] Templates de mensagem
+- [x] **RF-ADM-004: Comunicação em Massa** ✅ IMPLEMENTADO
+  - [x] Listagem de comunicados enviados
+  - [x] Wizard de 3 etapas (Conteúdo, Destinatários, Revisão)
+  - [x] Segmentação por tipo (todos, regime, inadimplentes, etc.)
+  - [x] Templates de mensagem (urgente, informativo, lembrete)
+  - [x] Agendamento de envios
+  - [x] Estatísticas de leitura
+  - [ ] Histórico detalhado de envios
 
 - [ ] **RF-ADM-005: Configuração de Serviços**
   - [ ] Ativar/desativar módulos
@@ -400,10 +408,13 @@
 - [ ] Sistema de Tickets
 - [ ] Base de Conhecimento
 
-### Sprint 5 (Semana 9-10) - Admin
-- [ ] Portal Administrativo
-- [ ] Painel do Contador
-- [ ] Gestão de Clientes
+### Sprint 5 (Semana 9-10) - Admin ✅ EM ANDAMENTO
+- [x] Portal Administrativo (estrutura)
+- [x] Painel do Contador (Dashboard)
+- [x] Gestão de Clientes
+- [x] Central de Alertas
+- [x] Comunicação em Massa
+- [ ] Configurações de Serviços
 
 ### Sprint 6 (Semana 11-12) - Backend
 - [ ] API REST inicial
@@ -414,9 +425,13 @@
 
 ## 🎨 Próxima Implementação
 
-**Prioridade Alta:**
-1. ✨ Wizard de Emissão de NF-e (3 etapas)
-2. 🔔 Central de Notificações
-3. ⚙️ Página de Configurações
+**Portal Admin - Próximos Passos:**
+1. 🏢 Formulário completo de cadastro de empresa
+2. 📤 Upload em nome do cliente
+3. 📋 Log detalhado de atividades
+4. ⚙️ Configuração de Serviços (RF-ADM-005)
 
-**Vamos começar pelo Wizard de Emissão de NF-e!**
+**Backend - Prioridade:**
+1. 🔧 Estrutura inicial da API (Node.js + Express)
+2. 🔐 Autenticação JWT
+3. 🗄️ Modelagem PostgreSQL

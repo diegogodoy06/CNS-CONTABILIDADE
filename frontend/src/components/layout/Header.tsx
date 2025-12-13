@@ -125,42 +125,31 @@ const Header: React.FC = () => {
         {/* Search Bar */}
         <Box
           sx={{
-            position: 'relative',
-            borderRadius: '10px',
-            bgcolor: alpha(theme.palette.common.black, 0.04),
-            '&:hover': {
-              bgcolor: alpha(theme.palette.common.black, 0.06),
-            },
+            display: 'flex',
+            alignItems: 'center',
+            bgcolor: 'grey.100',
+            borderRadius: 2,
+            px: 2,
+            py: 0.5,
             width: { xs: '100%', sm: 400 },
             maxWidth: 400,
           }}
         >
-          <Box
-            sx={{
-              p: '0 12px',
-              height: '100%',
-              position: 'absolute',
-              pointerEvents: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'text.secondary',
-            }}
-          >
-            <Search sx={{ fontSize: 20 }} />
-          </Box>
+          <Search sx={{ color: 'text.secondary', mr: 1, fontSize: 20 }} />
           <InputBase
             placeholder="Buscar notas, documentos, tomadores..."
             sx={{
+              flex: 1,
+              fontSize: '0.9rem',
               color: 'text.primary',
-              width: '100%',
               '& .MuiInputBase-input': {
-                p: '10px 12px 10px 44px',
-                fontSize: '0.875rem',
-                width: '100%',
+                py: 0.75,
               },
             }}
           />
+          <Typography variant="caption" color="text.secondary" sx={{ ml: 1, display: { xs: 'none', md: 'block' } }}>
+            Ctrl+K
+          </Typography>
         </Box>
 
         <Box sx={{ flexGrow: 1 }} />

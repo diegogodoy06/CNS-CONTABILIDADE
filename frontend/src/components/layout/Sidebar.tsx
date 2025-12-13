@@ -224,19 +224,19 @@ const Sidebar: React.FC = () => {
                       borderRadius: '8px',
                       py: 1.25,
                       px: sidebarCollapsed && !isMobile ? 1.5 : 1.5,
-                      minHeight: 44,
+                      minHeight: 48,
                       justifyContent: sidebarCollapsed && !isMobile ? 'center' : 'flex-start',
-                      color: active ? 'primary.main' : 'text.secondary',
-                      bgcolor: active ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                      color: active ? 'white' : 'text.secondary',
+                      bgcolor: active ? 'primary.main' : 'transparent',
                       '&:hover': {
-                        bgcolor: alpha(theme.palette.primary.main, 0.08),
-                        color: 'primary.main',
+                        bgcolor: active ? 'primary.dark' : 'action.hover',
+                        color: active ? 'white' : 'primary.main',
                       },
                     }}
                   >
                     <ListItemIcon
                       sx={{
-                        color: 'inherit',
+                        color: active ? 'white' : 'text.secondary',
                         minWidth: sidebarCollapsed && !isMobile ? 0 : 36,
                         justifyContent: 'center',
                         '& svg': { fontSize: 22 },
@@ -254,7 +254,7 @@ const Sidebar: React.FC = () => {
                       <ListItemText
                         primary={item.label}
                         primaryTypographyProps={{
-                          fontSize: '0.875rem',
+                          fontSize: '0.9rem',
                           fontWeight: active ? 600 : 500,
                         }}
                       />
@@ -283,19 +283,19 @@ const Sidebar: React.FC = () => {
                       borderRadius: '8px',
                       py: 1,
                       px: sidebarCollapsed && !isMobile ? 1.5 : 1.5,
-                      minHeight: 40,
+                      minHeight: 44,
                       justifyContent: sidebarCollapsed && !isMobile ? 'center' : 'flex-start',
-                      color: active ? 'primary.main' : 'text.secondary',
-                      bgcolor: active ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                      color: active ? 'white' : 'text.secondary',
+                      bgcolor: active ? 'primary.main' : 'transparent',
                       '&:hover': {
-                        bgcolor: alpha(theme.palette.primary.main, 0.08),
-                        color: 'primary.main',
+                        bgcolor: active ? 'primary.dark' : 'action.hover',
+                        color: active ? 'white' : 'primary.main',
                       },
                     }}
                   >
                     <ListItemIcon
                       sx={{
-                        color: 'inherit',
+                        color: active ? 'white' : 'text.secondary',
                         minWidth: sidebarCollapsed && !isMobile ? 0 : 36,
                         justifyContent: 'center',
                         '& svg': { fontSize: 20 },
@@ -307,8 +307,8 @@ const Sidebar: React.FC = () => {
                       <ListItemText
                         primary={item.label}
                         primaryTypographyProps={{
-                          fontSize: '0.8125rem',
-                          fontWeight: 400,
+                          fontSize: '0.875rem',
+                          fontWeight: active ? 600 : 500,
                         }}
                       />
                     )}
