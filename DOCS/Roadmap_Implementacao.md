@@ -145,32 +145,35 @@
 
 ---
 
-#### 5. Gestão Documental (RF-DOC)
+#### 5. Gestão Documental (RF-DOC) ✅ IMPLEMENTADO
 
-- [ ] **RF-DOC-001: Upload de Documentos**
+- [x] **RF-DOC-001: Upload de Documentos**
   - [x] Upload básico
-  - [ ] Drag-and-drop
-  - [ ] Preview de arquivos
-  - [ ] Progress bar
-  - [ ] Validação de tipos/tamanhos
+  - [x] Drag-and-drop
+  - [x] Preview de arquivos
+  - [x] Progress bar
+  - [x] Validação de tipos/tamanhos
 
-- [ ] **RF-DOC-002: Organização por Categorias**
+- [x] **RF-DOC-002: Organização por Categorias**
   - [x] Categorias básicas
-  - [ ] Subcategorias
-  - [ ] Árvore de navegação
-  - [ ] Breadcrumbs
+  - [x] Subcategorias
+  - [x] Árvore de navegação
+  - [x] Breadcrumbs
 
-- [ ] **RF-DOC-003: Busca e Filtros**
-  - [ ] Busca por nome
-  - [ ] Filtro por categoria
-  - [ ] Filtro por período
-  - [ ] Filtro por tipo de arquivo
+- [x] **RF-DOC-003: Busca e Filtros**
+  - [x] Busca por nome
+  - [x] Filtro por categoria
+  - [x] Filtro por período
+  - [x] Filtro por tipo de arquivo
+  - [x] Filtro por competência
+  - [x] Filtro por tags
 
-- [ ] **RF-DOC-004: Visualização**
-  - [ ] Viewer inline para PDF
-  - [ ] Viewer inline para imagens
-  - [ ] Download individual
-  - [ ] Download em lote (ZIP)
+- [x] **RF-DOC-004: Visualização**
+  - [x] Viewer inline para PDF
+  - [x] Viewer inline para imagens
+  - [x] Download individual
+  - [x] Download em lote (ZIP) com progresso
+  - [x] Compartilhamento (link/email)
 
 ---
 

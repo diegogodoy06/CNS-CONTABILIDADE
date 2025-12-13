@@ -69,6 +69,8 @@ import {
   DocumentFilters as DocumentFiltersComponent,
   CategoryTree,
   DocumentBreadcrumbs,
+  BatchDownloadDialog,
+  ShareDocumentDialog,
 } from '../components';
 
 // Extended mock data
@@ -294,6 +296,9 @@ const DocumentsPage: React.FC = () => {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerDocument, setViewerDocument] = useState<DocType | null>(null);
+  const [batchDownloadOpen, setBatchDownloadOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareDocument, setShareDocument] = useState<DocType | null>(null);
   
   // Menu state
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -404,11 +409,13 @@ const DocumentsPage: React.FC = () => {
   }, []);
 
   const handleDownloadSelected = () => {
-    setSnackbar({
-      open: true,
-      message: `Preparando download de ${selectedDocs.length} arquivos...`,
-      severity: 'info',
-    });
+    setBatchDownloadOpen(true);
+  };
+
+  const handleShareDocument = (doc: DocType) => {
+    setShareDocument(doc);
+    setShareDialogOpen(true);
+    handleMenuClose();
   };
 
   const handleDeleteSelected = () => {
@@ -879,7 +886,7 @@ const DocumentsPage: React.FC = () => {
           </ListItemIcon>
           Duplicar
         </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
+        <MenuItem onClick={() => menuDocument && handleShareDocument(menuDocument)}>
           <ListItemIcon>
             <Share fontSize="small" />
           </ListItemIcon>
@@ -942,14 +949,37 @@ const DocumentsPage: React.FC = () => {
           setViewerDocument(null);
         }}
         onDownload={handleDownload}
-        onShare={(doc) => {
+        onShare={handleShareDocument}
+        documents={filteredDocs}
+      />
+
+      {/* Batch Download Dialog */}
+      <BatchDownloadDialog
+        open={batchDownloadOpen}
+        onClose={() => {
+          setBatchDownloadOpen(false);
+          setSelectedDocs([]);
+        }}
+        documents={documents.filter(doc => selectedDocs.includes(doc.id))}
+      />
+
+      {/* Share Document Dialog */}
+      <ShareDocumentDialog
+        open={shareDialogOpen}
+        onClose={() => {
+          setShareDialogOpen(false);
+          setShareDocument(null);
+        }}
+        document={shareDocument}
+        onShare={(shareData) => {
           setSnackbar({
             open: true,
-            message: `Link de compartilhamento copiado: ${doc.nome}`,
+            message: shareData.type === 'link' 
+              ? 'Link de compartilhamento copiado!' 
+              : `Convite enviado para ${shareData.recipients?.length} pessoa(s)`,
             severity: 'success',
           });
         }}
-        documents={filteredDocs}
       />
 
       {/* Snackbar */}
