@@ -22,6 +22,8 @@ const EmitirNotaPage = lazy(() => import('./features/notas/pages/EmitirNotaPage'
 const GuiasPage = lazy(() => import('./features/guias/pages/GuiasPage'));
 const TomadoresPage = lazy(() => import('./features/tomadores/pages/TomadoresPage'));
 const CalendarioPage = lazy(() => import('./features/calendario/pages/CalendarioPage'));
+const NotificationSettingsPage = lazy(() => import('./features/notifications/pages/NotificationSettingsPage'));
+const NotificationHistoryPage = lazy(() => import('./features/notifications/pages/NotificationHistoryPage'));
 
 // Loading fallback component
 const PageLoader: React.FC = () => (
@@ -141,6 +143,8 @@ const AppContent: React.FC = () => {
                 <Route path="guias" element={<GuiasPage />} />
                 <Route path="tomadores" element={<TomadoresPage />} />
                 <Route path="calendario" element={<CalendarioPage />} />
+                <Route path="notificacoes" element={<NotificationHistoryPage />} />
+                <Route path="configuracoes/notificacoes" element={<NotificationSettingsPage />} />
                 
                 {/* Future routes */}
                 <Route path="relatorios" element={<ComingSoon title="Relatórios" />} />

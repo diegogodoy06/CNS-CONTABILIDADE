@@ -5,7 +5,6 @@ import {
   IconButton,
   InputBase,
   Toolbar,
-  Badge,
   Avatar,
   Menu,
   MenuItem,
@@ -18,7 +17,6 @@ import {
 } from '@mui/material';
 import {
   Search,
-  Notifications,
   Menu as MenuIcon,
   Person,
   Settings,
@@ -34,6 +32,7 @@ import type { RootState } from '../../store';
 import { setSidebarMobileOpen, toggleDarkMode } from '../../store/slices/uiSlice';
 import { logout } from '../../store/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
+import NotificationCenter from '../shared/NotificationCenter';
 
 const DRAWER_WIDTH = 260;
 const DRAWER_WIDTH_COLLAPSED = 72;
@@ -212,6 +211,7 @@ const Header: React.FC = () => {
           anchorEl={anchorElCompany}
           open={Boolean(anchorElCompany)}
           onClose={handleCloseCompanyMenu}
+          disableRestoreFocus
           anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
           transformOrigin={{ vertical: 'top', horizontal: 'right' }}
           PaperProps={{
@@ -274,30 +274,7 @@ const Header: React.FC = () => {
         </Tooltip>
 
         {/* Notifications */}
-        <Tooltip title="Notificações">
-          <IconButton
-            sx={{
-              color: 'text.secondary',
-              '&:hover': {
-                bgcolor: alpha(theme.palette.primary.main, 0.08),
-              },
-            }}
-          >
-            <Badge
-              badgeContent={3}
-              color="error"
-              sx={{
-                '& .MuiBadge-badge': {
-                  fontSize: '0.65rem',
-                  height: 18,
-                  minWidth: 18,
-                },
-              }}
-            >
-              <Notifications sx={{ fontSize: 22 }} />
-            </Badge>
-          </IconButton>
-        </Tooltip>
+        <NotificationCenter />
 
         {/* User Menu */}
         <Box>
@@ -328,6 +305,7 @@ const Header: React.FC = () => {
             anchorEl={anchorElUser}
             open={Boolean(anchorElUser)}
             onClose={handleCloseUserMenu}
+            disableRestoreFocus
             anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
             transformOrigin={{ vertical: 'top', horizontal: 'right' }}
             PaperProps={{

@@ -449,7 +449,7 @@ const DocumentsPage: React.FC = () => {
 
   // Render document grid item
   const renderGridItem = (doc: DocType) => (
-    <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={doc.id}>
+    <Grid item xs={12} sm={6} md={4} lg={3} key={doc.id}>
       <Paper
         sx={{
           p: 2,
