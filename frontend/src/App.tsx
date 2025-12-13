@@ -26,6 +26,9 @@ const NotificationSettingsPage = lazy(() => import('./features/notifications/pag
 const NotificationHistoryPage = lazy(() => import('./features/notifications/pages/NotificationHistoryPage'));
 const RelatoriosPage = lazy(() => import('./features/relatorios/pages/RelatoriosPage'));
 const ConfiguracoesPage = lazy(() => import('./features/configuracoes/pages/ConfiguracoesPage'));
+const MensagensPage = lazy(() => import('./features/comunicacao/pages/MensagensPage'));
+const TicketsPage = lazy(() => import('./features/comunicacao/pages/TicketsPage'));
+const AjudaPage = lazy(() => import('./features/comunicacao/pages/AjudaPage'));
 
 // Loading fallback component
 const PageLoader: React.FC = () => (
@@ -154,8 +157,12 @@ const AppContent: React.FC = () => {
                 {/* Configurações */}
                 <Route path="configuracoes" element={<ConfiguracoesPage />} />
                 
+                {/* Comunicação */}
+                <Route path="mensagens" element={<MensagensPage />} />
+                <Route path="tickets" element={<TicketsPage />} />
+                <Route path="ajuda" element={<AjudaPage />} />
+                
                 {/* Future routes */}
-                <Route path="ajuda" element={<ComingSoon title="Central de Ajuda" />} />
                 <Route path="perfil" element={<ComingSoon title="Meu Perfil" />} />
                 
                 {/* 404 inside authenticated area */}
