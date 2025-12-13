@@ -24,6 +24,8 @@ const TomadoresPage = lazy(() => import('./features/tomadores/pages/TomadoresPag
 const CalendarioPage = lazy(() => import('./features/calendario/pages/CalendarioPage'));
 const NotificationSettingsPage = lazy(() => import('./features/notifications/pages/NotificationSettingsPage'));
 const NotificationHistoryPage = lazy(() => import('./features/notifications/pages/NotificationHistoryPage'));
+const RelatoriosPage = lazy(() => import('./features/relatorios/pages/RelatoriosPage'));
+const ConfiguracoesPage = lazy(() => import('./features/configuracoes/pages/ConfiguracoesPage'));
 
 // Loading fallback component
 const PageLoader: React.FC = () => (
@@ -146,9 +148,13 @@ const AppContent: React.FC = () => {
                 <Route path="notificacoes" element={<NotificationHistoryPage />} />
                 <Route path="configuracoes/notificacoes" element={<NotificationSettingsPage />} />
                 
+                {/* Relatórios */}
+                <Route path="relatorios" element={<RelatoriosPage />} />
+                
+                {/* Configurações */}
+                <Route path="configuracoes" element={<ConfiguracoesPage />} />
+                
                 {/* Future routes */}
-                <Route path="relatorios" element={<ComingSoon title="Relatórios" />} />
-                <Route path="configuracoes" element={<ComingSoon title="Configurações" />} />
                 <Route path="ajuda" element={<ComingSoon title="Central de Ajuda" />} />
                 <Route path="perfil" element={<ComingSoon title="Meu Perfil" />} />
                 
