@@ -292,7 +292,7 @@ export interface PaginatedResponse<T> {
 
 // --- Form Types ---
 export interface LoginForm {
-  cnpj: string;
+  email: string;
   senha: string;
   lembrar: boolean;
 }

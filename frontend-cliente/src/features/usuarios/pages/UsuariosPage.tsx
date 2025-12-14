@@ -50,6 +50,7 @@ import {
   Email as EmailIcon,
   Refresh as RefreshIcon,
   ContentCopy as CopyIcon,
+  Business as BusinessIcon,
 } from '@mui/icons-material';
 
 interface Usuario {
@@ -149,6 +150,13 @@ const PERMISSOES = {
     'Visualizar relatórios',
     'Download de arquivos',
   ],
+};
+
+// Mock: Empresa atualmente selecionada (virá do contexto/Redux no futuro)
+const EMPRESA_ATUAL = {
+  id: '1',
+  razaoSocial: 'Tech Solutions Ltda',
+  cnpj: '12.345.678/0001-90',
 };
 
 export default function UsuariosPage() {
@@ -271,13 +279,39 @@ export default function UsuariosPage() {
 
   return (
     <Box>
+      {/* Banner informativo sobre escopo da visualização */}
+      <Alert 
+        severity="info" 
+        icon={<BusinessIcon />}
+        sx={{ 
+          mb: 3, 
+          backgroundColor: (theme) => alpha(theme.palette.info.main, 0.1),
+          '& .MuiAlert-icon': { alignItems: 'center' }
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          <Typography variant="body2" component="span">
+            Exibindo usuários de:
+          </Typography>
+          <Chip 
+            label={EMPRESA_ATUAL.razaoSocial}
+            size="small"
+            color="primary"
+            variant="outlined"
+          />
+          <Typography variant="body2" color="text.secondary" component="span">
+            ({EMPRESA_ATUAL.cnpj})
+          </Typography>
+        </Box>
+      </Alert>
+
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
           <Typography variant="h4" fontWeight="bold">
-            Gestão de Usuários
+            Usuários da Empresa
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Gerencie os usuários que têm acesso ao sistema
+            Gerencie os usuários que têm acesso a esta empresa
           </Typography>
         </Box>
         <Button

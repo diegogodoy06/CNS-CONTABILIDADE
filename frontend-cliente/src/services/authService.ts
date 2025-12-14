@@ -59,36 +59,66 @@ const MOCK_COMPANY: Company = {
 };
 
 // Credenciais válidas para teste
+// Usuários podem ter acesso a múltiplas empresas
 const VALID_CREDENTIALS = [
-  { cnpj: '12345678000199', senha: '12345678' },
-  { cnpj: '00000000000000', senha: 'admin123' },
+  { email: 'joao@empresa.com.br', senha: '12345678', requiresTwoFA: true },
+  { email: 'admin@cnscontabil.com.br', senha: 'admin123', requiresTwoFA: false },
+  { email: 'contador@cnscontabil.com.br', senha: 'contador123', requiresTwoFA: false },
 ];
 
+// Empresas disponíveis para cada usuário
+const USER_COMPANIES: Record<string, Company[]> = {
+  'joao@empresa.com.br': [
+    { ...MOCK_COMPANY, id: '1', cnpj: '12.345.678/0001-99', nomeFantasia: 'Empresa Demo', razaoSocial: 'Empresa Demo Ltda' },
+    { ...MOCK_COMPANY, id: '2', cnpj: '98.765.432/0001-10', nomeFantasia: 'Outra Empresa', razaoSocial: 'Outra Empresa S/A' },
+  ],
+  'admin@cnscontabil.com.br': [
+    { ...MOCK_COMPANY, id: '1', cnpj: '12.345.678/0001-99', nomeFantasia: 'Empresa Demo', razaoSocial: 'Empresa Demo Ltda' },
+  ],
+  'contador@cnscontabil.com.br': [
+    { ...MOCK_COMPANY, id: '1', cnpj: '12.345.678/0001-99', nomeFantasia: 'Empresa Demo', razaoSocial: 'Empresa Demo Ltda' },
+    { ...MOCK_COMPANY, id: '2', cnpj: '98.765.432/0001-10', nomeFantasia: 'Outra Empresa', razaoSocial: 'Outra Empresa S/A' },
+    { ...MOCK_COMPANY, id: '3', cnpj: '11.222.333/0001-44', nomeFantasia: 'Terceira Empresa', razaoSocial: 'Terceira Empresa ME' },
+  ],
+};
+
 export const authService = {
-  // Login com CNPJ e senha (MODO MOCK)
+  // Login com Email e senha (MODO MOCK)
   async login(data: LoginForm): Promise<LoginResponse> {
     // Simula delay de rede
     await new Promise(resolve => setTimeout(resolve, 800));
     
-    // Remove formatação do CNPJ
-    const cleanCNPJ = data.cnpj.replace(/\D/g, '');
+    const email = data.email.toLowerCase().trim();
     
     // Verifica credenciais
-    const isValid = VALID_CREDENTIALS.some(
-      cred => cred.cnpj === cleanCNPJ && cred.senha === data.senha
+    const credential = VALID_CREDENTIALS.find(
+      cred => cred.email === email && cred.senha === data.senha
     );
     
-    if (!isValid) {
-      throw new Error('CNPJ ou senha inválidos');
+    if (!credential) {
+      throw new Error('Email ou senha inválidos');
     }
     
-    // Retorna dados mock
+    // Retorna dados mock (primeira empresa do usuário)
+    const companies = USER_COMPANIES[email] || [MOCK_COMPANY];
     return {
-      user: MOCK_USER,
-      company: { ...MOCK_COMPANY, cnpj: data.cnpj },
+      user: { ...MOCK_USER, email: email },
+      company: companies[0],
       token: 'mock-jwt-token-' + Date.now(),
       refreshToken: 'mock-refresh-token-' + Date.now(),
     };
+  },
+
+  // Obter empresas do usuário (MOCK)
+  async getUserCompanies(email: string): Promise<Company[]> {
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return USER_COMPANIES[email.toLowerCase()] || [];
+  },
+
+  // Verificar se precisa de 2FA (MOCK)
+  async checkRequires2FA(email: string): Promise<boolean> {
+    const credential = VALID_CREDENTIALS.find(c => c.email === email.toLowerCase());
+    return credential?.requiresTwoFA || false;
   },
 
   // Logout (MOCK)

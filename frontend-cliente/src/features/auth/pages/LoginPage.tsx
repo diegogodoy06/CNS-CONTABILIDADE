@@ -28,7 +28,7 @@ import {
 import {
   Visibility,
   VisibilityOff,
-  Business,
+  Email,
   Lock,
   Refresh,
   Warning,
@@ -49,26 +49,16 @@ const BLOCK_DURATION_MINUTES = 5;
 
 // Validação do formulário
 const schema = yup.object({
-  cnpj: yup
+  email: yup
     .string()
-    .required('CNPJ é obrigatório')
-    .matches(/^\d{14}$|^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/, 'CNPJ inválido'),
+    .required('Email é obrigatório')
+    .email('Email inválido'),
   senha: yup
     .string()
     .required('Senha é obrigatória')
     .min(8, 'Senha deve ter no mínimo 8 caracteres'),
   lembrar: yup.boolean().default(false),
 }).required();
-
-// Formatação de CNPJ
-const formatCNPJ = (value: string): string => {
-  const numbers = value.replace(/\D/g, '');
-  if (numbers.length <= 2) return numbers;
-  if (numbers.length <= 5) return `${numbers.slice(0, 2)}.${numbers.slice(2)}`;
-  if (numbers.length <= 8) return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5)}`;
-  if (numbers.length <= 12) return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5, 8)}/${numbers.slice(8)}`;
-  return `${numbers.slice(0, 2)}.${numbers.slice(2, 5)}.${numbers.slice(5, 8)}/${numbers.slice(8, 12)}-${numbers.slice(12, 14)}`;
-};
 
 // Gerador de captcha simples
 const generateCaptcha = (): string => {
@@ -104,12 +94,11 @@ const LoginPage: React.FC = () => {
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: yupResolver(schema) as any,
     defaultValues: {
-      cnpj: '',
+      email: '',
       senha: '',
       lembrar: false,
     },
@@ -169,16 +158,18 @@ const LoginPage: React.FC = () => {
 
     dispatch(loginStart());
     try {
-      const cleanCNPJ = data.cnpj.replace(/\D/g, '');
-      const result = await authService.login({ ...data, cnpj: cleanCNPJ });
+      const email = data.email.toLowerCase().trim();
       
-      // Check if 2FA is required (simulated - always show for demo CNPJ)
-      if (cleanCNPJ === '12345678000199') {
+      // Check if 2FA is required
+      const requires2FA = await authService.checkRequires2FA(email);
+      if (requires2FA) {
         setPendingLoginData(data);
         setShow2FADialog(true);
         dispatch(loginFailure('')); // Clear loading state
         return;
       }
+      
+      const result = await authService.login(data);
       
       // Reset security states on success
       setLoginAttempts(0);
@@ -217,8 +208,7 @@ const LoginPage: React.FC = () => {
       
       // Complete login
       if (pendingLoginData) {
-        const cleanCNPJ = pendingLoginData.cnpj.replace(/\D/g, '');
-        const result = await authService.login({ ...pendingLoginData, cnpj: cleanCNPJ });
+        const result = await authService.login(pendingLoginData);
         dispatch(loginSuccess(result));
         navigate('/dashboard');
       }
@@ -229,11 +219,6 @@ const LoginPage: React.FC = () => {
 
   const onSubmit = async (data: LoginForm) => {
     await handleLoginAttempt(data);
-  };
-
-  const handleCNPJChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatCNPJ(e.target.value);
-    setValue('cnpj', formatted);
   };
 
   const formatTime = (seconds: number) => {
@@ -286,7 +271,7 @@ const LoginPage: React.FC = () => {
               Acesse sua conta
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Entre com seu CNPJ e senha para continuar
+              Entre com seu email e senha para continuar
             </Typography>
 
             {/* Block Warning */}
@@ -334,18 +319,18 @@ const LoginPage: React.FC = () => {
 
             <form onSubmit={handleSubmit(onSubmit)}>
               <TextField
-                {...register('cnpj')}
+                {...register('email')}
                 fullWidth
-                label="CNPJ"
-                placeholder="00.000.000/0000-00"
-                error={!!errors.cnpj}
-                helperText={errors.cnpj?.message}
-                onChange={handleCNPJChange}
+                label="Email"
+                placeholder="seu@email.com.br"
+                type="email"
+                error={!!errors.email}
+                helperText={errors.email?.message}
                 disabled={isBlocked}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <Business color="action" />
+                      <Email color="action" />
                     </InputAdornment>
                   ),
                 }}
