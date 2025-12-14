@@ -5,3 +5,4 @@ export { default as CategoryTree } from './CategoryTree';
 export { default as DocumentBreadcrumbs } from './DocumentBreadcrumbs';
 export { default as BatchDownloadDialog } from './BatchDownloadDialog';
 export { default as ShareDocumentDialog } from './ShareDocumentDialog';
+export { default as HistoricoAcessosDialog } from './HistoricoAcessosDialog';

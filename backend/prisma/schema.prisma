@@ -1,0 +1,782 @@
+// ===========================================
+// CNS Contabilidade - Prisma Schema
+// Baseado na modelagem PostgreSQL existente
+// ===========================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["core", "audit", "config", "comm"]
+}
+
+// ===========================================
+// ENUMS
+// ===========================================
+
+enum TipoUsuario {
+  ADMIN_SISTEMA
+  ADMIN_ESCRITORIO
+  COLABORADOR
+  CLIENTE
+
+  @@schema("core")
+}
+
+enum StatusUsuario {
+  ATIVO
+  INATIVO
+  PENDENTE
+  BLOQUEADO
+
+  @@schema("core")
+}
+
+enum TipoPessoa {
+  FISICA
+  JURIDICA
+
+  @@schema("core")
+}
+
+enum RegimeTributario {
+  SIMPLES_NACIONAL
+  LUCRO_PRESUMIDO
+  LUCRO_REAL
+  MEI
+
+  @@schema("core")
+}
+
+enum StatusEmpresa {
+  ATIVA
+  INATIVA
+  SUSPENSA
+  BAIXADA
+
+  @@schema("core")
+}
+
+enum RoleEmpresa {
+  PROPRIETARIO
+  SOCIO
+  CONTADOR
+  FUNCIONARIO
+  VISUALIZADOR
+
+  @@schema("core")
+}
+
+enum StatusNota {
+  RASCUNHO
+  EMITIDA
+  CANCELADA
+  SUBSTITUIDA
+
+  @@schema("core")
+}
+
+enum StatusGuia {
+  PENDENTE
+  PAGA
+  VENCIDA
+  CANCELADA
+  PARCELADA
+
+  @@schema("core")
+}
+
+enum TipoGuia {
+  DAS
+  ISS
+  IRPJ
+  CSLL
+  PIS
+  COFINS
+  INSS
+  FGTS
+  OUTROS
+
+  @@schema("core")
+}
+
+enum TipoDocumento {
+  CONTRATO_SOCIAL
+  ALTERACAO_CONTRATUAL
+  BALANCO
+  DRE
+  LIVRO_CAIXA
+  PROCURACAO
+  CERTIFICADO_DIGITAL
+  COMPROVANTE
+  NOTA_FISCAL
+  GUIA
+  OUTROS
+
+  @@schema("core")
+}
+
+enum StatusDocumento {
+  ATIVO
+  ARQUIVADO
+  EXCLUIDO
+
+  @@schema("core")
+}
+
+enum TipoNotificacao {
+  SISTEMA
+  VENCIMENTO
+  DOCUMENTO
+  MENSAGEM
+  ALERTA
+
+  @@schema("comm")
+}
+
+enum CanalNotificacao {
+  APP
+  EMAIL
+  SMS
+  WHATSAPP
+
+  @@schema("comm")
+}
+
+enum StatusNotificacao {
+  PENDENTE
+  ENVIADA
+  LIDA
+  ERRO
+
+  @@schema("comm")
+}
+
+enum StatusTicket {
+  ABERTO
+  EM_ANDAMENTO
+  AGUARDANDO_CLIENTE
+  RESOLVIDO
+  FECHADO
+
+  @@schema("comm")
+}
+
+enum PrioridadeTicket {
+  BAIXA
+  MEDIA
+  ALTA
+  URGENTE
+
+  @@schema("comm")
+}
+
+enum TipoAcao {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  IMPORT
+
+  @@schema("audit")
+}
+
+enum TipoFeriado {
+  NACIONAL
+  ESTADUAL
+  MUNICIPAL
+
+  @@schema("config")
+}
+
+enum FrequenciaObrigacao {
+  MENSAL
+  TRIMESTRAL
+  ANUAL
+  EVENTUAL
+
+  @@schema("config")
+}
+
+// ===========================================
+// CONFIG SCHEMA - Configurações do Sistema
+// ===========================================
+
+model Regiao {
+  id     Int      @id
+  nome   String   @db.VarChar(50)
+  sigla  String   @db.VarChar(2)
+  estados Estado[]
+
+  @@map("regioes")
+  @@schema("config")
+}
+
+model Estado {
+  id           Int         @id
+  nome         String      @db.VarChar(100)
+  sigla        String      @unique @db.VarChar(2)
+  codigoIbge   Int         @unique @map("codigo_ibge")
+  regiaoId     Int         @map("regiao_id")
+  capitalCodigo Int?       @map("capital_codigo")
+  
+  regiao       Regiao      @relation(fields: [regiaoId], references: [id])
+  municipios   Municipio[]
+  escritorios  Escritorio[]
+  empresas     Empresa[]
+  tomadores    Tomador[]
+  feriados     Feriado[]   @relation("FeriadoEstado")
+
+  @@map("estados")
+  @@schema("config")
+}
+
+model Municipio {
+  codigo    Int      @id
+  nome      String   @db.VarChar(200)
+  estadoId  Int      @map("estado_id")
+  
+  estado    Estado   @relation(fields: [estadoId], references: [id])
+  
+  escritorios            Escritorio[]
+  empresas               Empresa[]            @relation("EmpresaMunicipio")
+  empresasPrestacao      Empresa[]            @relation("EmpresaMunicipioPrestacao")
+  tomadores              Tomador[]
+  notasLocalPrestacao    NotaFiscal[]
+
+  @@index([estadoId])
+  @@index([nome])
+  @@map("municipios")
+  @@schema("config")
+}
+
+model Configuracao {
+  id          String   @id @default(uuid()) @db.Uuid
+  chave       String   @unique @db.VarChar(100)
+  valor       String
+  tipo        String   @default("string") @db.VarChar(20)
+  descricao   String?
+  grupo       String   @default("geral") @db.VarChar(50)
+  editavel    Boolean  @default(true)
+  criadoEm    DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  @@map("configuracoes")
+  @@schema("config")
+}
+
+model Feriado {
+  id           String       @id @default(uuid()) @db.Uuid
+  nome         String       @db.VarChar(200)
+  data         DateTime     @db.Date
+  tipo         TipoFeriado
+  recorrente   Boolean      @default(true)
+  estadoId     Int?         @map("estado_id")
+  estado       Estado?      @relation("FeriadoEstado", fields: [estadoId], references: [id])
+  criadoEm     DateTime     @default(now()) @map("criado_em")
+
+  @@unique([data, tipo, estadoId])
+  @@map("feriados")
+  @@schema("config")
+}
+
+model ObrigacaoFiscal {
+  id               String              @id @default(uuid()) @db.Uuid
+  nome             String              @db.VarChar(100)
+  descricao        String?
+  frequencia       FrequenciaObrigacao
+  diaVencimento    Int                 @map("dia_vencimento")
+  antecipaFeriado  Boolean             @default(true) @map("antecipa_feriado")
+  ativo            Boolean             @default(true)
+  regimesTributarios RegimeTributario[]  @map("regimes_tributarios")
+  criadoEm         DateTime            @default(now()) @map("criado_em")
+  
+  empresaObrigacoes EmpresaObrigacao[]
+
+  @@map("obrigacoes_fiscais")
+  @@schema("config")
+}
+
+model EmpresaObrigacao {
+  id              String          @id @default(uuid()) @db.Uuid
+  empresaId       String          @map("empresa_id") @db.Uuid
+  obrigacaoId     String          @map("obrigacao_id") @db.Uuid
+  ativo           Boolean         @default(true)
+  observacoes     String?
+  criadoEm        DateTime        @default(now()) @map("criado_em")
+  
+  empresa         Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  obrigacao       ObrigacaoFiscal @relation(fields: [obrigacaoId], references: [id])
+
+  @@unique([empresaId, obrigacaoId])
+  @@map("empresa_obrigacoes")
+  @@schema("config")
+}
+
+// ===========================================
+// CORE SCHEMA - Entidades Principais
+// ===========================================
+
+model Escritorio {
+  id               String            @id @default(uuid()) @db.Uuid
+  razaoSocial      String            @map("razao_social") @db.VarChar(200)
+  nomeFantasia     String?           @map("nome_fantasia") @db.VarChar(200)
+  cnpj             String            @unique @db.VarChar(14)
+  inscricaoEstadual String?          @map("inscricao_estadual") @db.VarChar(20)
+  crc              String?           @db.VarChar(20)
+  email            String            @db.VarChar(200)
+  telefone         String?           @db.VarChar(20)
+  celular          String?           @db.VarChar(20)
+  logradouro       String?           @db.VarChar(200)
+  numero           String?           @db.VarChar(20)
+  complemento      String?           @db.VarChar(100)
+  bairro           String?           @db.VarChar(100)
+  cep              String?           @db.VarChar(8)
+  estadoId         Int?              @map("estado_id")
+  municipioCodigo  Int?              @map("municipio_codigo")
+  logoUrl          String?           @map("logo_url")
+  ativo            Boolean           @default(true)
+  criadoEm         DateTime          @default(now()) @map("criado_em")
+  atualizadoEm     DateTime          @updatedAt @map("atualizado_em")
+  
+  estado           Estado?           @relation(fields: [estadoId], references: [id])
+  municipio        Municipio?        @relation(fields: [municipioCodigo], references: [codigo])
+  empresas         Empresa[]
+  colaboradores    ColaboradorEscritorio[]
+
+  @@map("escritorio")
+  @@schema("core")
+}
+
+model Empresa {
+  id                     String            @id @default(uuid()) @db.Uuid
+  escritorioId           String            @map("escritorio_id") @db.Uuid
+  razaoSocial            String            @map("razao_social") @db.VarChar(200)
+  nomeFantasia           String?           @map("nome_fantasia") @db.VarChar(200)
+  cnpj                   String            @unique @db.VarChar(14)
+  inscricaoEstadual      String?           @map("inscricao_estadual") @db.VarChar(20)
+  inscricaoMunicipal     String?           @map("inscricao_municipal") @db.VarChar(20)
+  regimeTributario       RegimeTributario  @map("regime_tributario")
+  ramoAtividade          String?           @map("ramo_atividade") @db.VarChar(200)
+  cnaePrincipal          String?           @map("cnae_principal") @db.VarChar(10)
+  dataAbertura           DateTime?         @map("data_abertura") @db.Date
+  email                  String            @db.VarChar(200)
+  telefone               String?           @db.VarChar(20)
+  celular                String?           @db.VarChar(20)
+  logradouro             String?           @db.VarChar(200)
+  numero                 String?           @db.VarChar(20)
+  complemento            String?           @db.VarChar(100)
+  bairro                 String?           @db.VarChar(100)
+  cep                    String?           @db.VarChar(8)
+  estadoId               Int?              @map("estado_id")
+  municipioCodigo        Int?              @map("municipio_codigo")
+  municipioPrestacaoCodigo Int?            @map("municipio_prestacao_codigo")
+  codigoServico          String?           @map("codigo_servico") @db.VarChar(20)
+  aliquotaIss            Decimal?          @default(0) @map("aliquota_iss") @db.Decimal(5, 2)
+  status                 StatusEmpresa     @default(ATIVA)
+  criadoEm               DateTime          @default(now()) @map("criado_em")
+  atualizadoEm           DateTime          @updatedAt @map("atualizado_em")
+  
+  escritorio             Escritorio        @relation(fields: [escritorioId], references: [id])
+  estado                 Estado?           @relation(fields: [estadoId], references: [id])
+  municipio              Municipio?        @relation("EmpresaMunicipio", fields: [municipioCodigo], references: [codigo])
+  municipioPrestacao     Municipio?        @relation("EmpresaMunicipioPrestacao", fields: [municipioPrestacaoCodigo], references: [codigo])
+  usuarios               UsuarioEmpresa[]
+  tomadores              Tomador[]
+  notasFiscais           NotaFiscal[]
+  guias                  Guia[]
+  documentos             Documento[]
+  obrigacoes             EmpresaObrigacao[]
+  tickets                Ticket[]
+
+  @@index([escritorioId])
+  @@index([status])
+  @@map("empresas")
+  @@schema("core")
+}
+
+model Usuario {
+  id                String            @id @default(uuid()) @db.Uuid
+  email             String            @unique @db.VarChar(200)
+  senhaHash         String            @map("senha_hash")
+  nome              String            @db.VarChar(200)
+  cpf               String?           @unique @db.VarChar(11)
+  telefone          String?           @db.VarChar(20)
+  celular           String?           @db.VarChar(20)
+  avatarUrl         String?           @map("avatar_url")
+  tipo              TipoUsuario
+  status            StatusUsuario     @default(PENDENTE)
+  emailVerificado   Boolean           @default(false) @map("email_verificado")
+  tokenVerificacao  String?           @map("token_verificacao")
+  tokenRecuperacao  String?           @map("token_recuperacao")
+  tokenExpiracao    DateTime?         @map("token_expiracao")
+  ultimoLogin       DateTime?         @map("ultimo_login")
+  tentativasLogin   Int               @default(0) @map("tentativas_login")
+  bloqueadoAte      DateTime?         @map("bloqueado_ate")
+  criadoEm          DateTime          @default(now()) @map("criado_em")
+  atualizadoEm      DateTime          @updatedAt @map("atualizado_em")
+  
+  colaborador       ColaboradorEscritorio?
+  empresas          UsuarioEmpresa[]
+  sessoes           Sessao[]
+  notificacoes      Notificacao[]
+  configNotificacoes ConfiguracaoNotificacao[]
+  mensagensEnviadas Mensagem[]        @relation("MensagemRemetente")
+  mensagensRecebidas Mensagem[]       @relation("MensagemDestinatario")
+  ticketsCriados    Ticket[]          @relation("TicketCriador")
+  ticketsAtribuidos Ticket[]          @relation("TicketAtribuido")
+  ticketComentarios TicketComentario[]
+  acessosDocumentos AcessoDocumento[]
+  logs              Log[]
+
+  @@index([email])
+  @@index([tipo])
+  @@index([status])
+  @@map("usuarios")
+  @@schema("core")
+}
+
+model ColaboradorEscritorio {
+  id           String      @id @default(uuid()) @db.Uuid
+  usuarioId    String      @unique @map("usuario_id") @db.Uuid
+  escritorioId String      @map("escritorio_id") @db.Uuid
+  cargo        String?     @db.VarChar(100)
+  departamento String?     @db.VarChar(100)
+  dataAdmissao DateTime?   @map("data_admissao") @db.Date
+  ativo        Boolean     @default(true)
+  criadoEm     DateTime    @default(now()) @map("criado_em")
+  atualizadoEm DateTime    @updatedAt @map("atualizado_em")
+  
+  usuario      Usuario     @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  escritorio   Escritorio  @relation(fields: [escritorioId], references: [id])
+
+  @@map("colaboradores_escritorio")
+  @@schema("core")
+}
+
+model UsuarioEmpresa {
+  id           String       @id @default(uuid()) @db.Uuid
+  usuarioId    String       @map("usuario_id") @db.Uuid
+  empresaId    String       @map("empresa_id") @db.Uuid
+  role         RoleEmpresa
+  permissoes   String[]     @default([])
+  ativo        Boolean      @default(true)
+  criadoEm     DateTime     @default(now()) @map("criado_em")
+  atualizadoEm DateTime     @updatedAt @map("atualizado_em")
+  
+  usuario      Usuario      @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  empresa      Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, empresaId])
+  @@map("usuarios_empresas")
+  @@schema("core")
+}
+
+model Tomador {
+  id                 String        @id @default(uuid()) @db.Uuid
+  empresaId          String        @map("empresa_id") @db.Uuid
+  tipoPessoa         TipoPessoa    @map("tipo_pessoa")
+  cpfCnpj            String        @map("cpf_cnpj") @db.VarChar(14)
+  razaoSocial        String        @map("razao_social") @db.VarChar(200)
+  nomeFantasia       String?       @map("nome_fantasia") @db.VarChar(200)
+  inscricaoEstadual  String?       @map("inscricao_estadual") @db.VarChar(20)
+  inscricaoMunicipal String?       @map("inscricao_municipal") @db.VarChar(20)
+  email              String?       @db.VarChar(200)
+  telefone           String?       @db.VarChar(20)
+  logradouro         String?       @db.VarChar(200)
+  numero             String?       @db.VarChar(20)
+  complemento        String?       @db.VarChar(100)
+  bairro             String?       @db.VarChar(100)
+  cep                String?       @db.VarChar(8)
+  estadoId           Int?          @map("estado_id")
+  municipioCodigo    Int?          @map("municipio_codigo")
+  observacoes        String?
+  ativo              Boolean       @default(true)
+  criadoEm           DateTime      @default(now()) @map("criado_em")
+  atualizadoEm       DateTime      @updatedAt @map("atualizado_em")
+  
+  empresa            Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  estado             Estado?       @relation(fields: [estadoId], references: [id])
+  municipio          Municipio?    @relation(fields: [municipioCodigo], references: [codigo])
+  notasFiscais       NotaFiscal[]
+
+  @@unique([empresaId, cpfCnpj])
+  @@index([empresaId])
+  @@map("tomadores")
+  @@schema("core")
+}
+
+model NotaFiscal {
+  id                      String      @id @default(uuid()) @db.Uuid
+  empresaId               String      @map("empresa_id") @db.Uuid
+  tomadorId               String      @map("tomador_id") @db.Uuid
+  numero                  Int?
+  serie                   String?     @db.VarChar(10)
+  codigoVerificacao       String?     @map("codigo_verificacao") @db.VarChar(50)
+  dataEmissao             DateTime    @map("data_emissao") @db.Date
+  competencia             DateTime    @db.Date
+  descricaoServico        String      @map("descricao_servico")
+  codigoServico           String      @map("codigo_servico") @db.VarChar(20)
+  valorServico            Decimal     @map("valor_servico") @db.Decimal(15, 2)
+  valorDeducoes           Decimal     @default(0) @map("valor_deducoes") @db.Decimal(15, 2)
+  baseCalculo             Decimal     @map("base_calculo") @db.Decimal(15, 2)
+  aliquotaIss             Decimal     @map("aliquota_iss") @db.Decimal(5, 2)
+  valorIss                Decimal     @map("valor_iss") @db.Decimal(15, 2)
+  issRetido               Boolean     @default(false) @map("iss_retido")
+  valorIssRetido          Decimal     @default(0) @map("valor_iss_retido") @db.Decimal(15, 2)
+  valorPis                Decimal     @default(0) @map("valor_pis") @db.Decimal(15, 2)
+  valorCofins             Decimal     @default(0) @map("valor_cofins") @db.Decimal(15, 2)
+  valorInss               Decimal     @default(0) @map("valor_inss") @db.Decimal(15, 2)
+  valorIr                 Decimal     @default(0) @map("valor_ir") @db.Decimal(15, 2)
+  valorCsll               Decimal     @default(0) @map("valor_csll") @db.Decimal(15, 2)
+  outrasRetencoes         Decimal     @default(0) @map("outras_retencoes") @db.Decimal(15, 2)
+  valorLiquido            Decimal     @map("valor_liquido") @db.Decimal(15, 2)
+  localPrestacaoMunicipioCodigo Int?  @map("local_prestacao_municipio_codigo")
+  status                  StatusNota  @default(RASCUNHO)
+  motivoCancelamento      String?     @map("motivo_cancelamento")
+  notaSubstituidaId       String?     @map("nota_substituida_id") @db.Uuid
+  xmlNota                 String?     @map("xml_nota")
+  pdfUrl                  String?     @map("pdf_url")
+  criadoEm                DateTime    @default(now()) @map("criado_em")
+  atualizadoEm            DateTime    @updatedAt @map("atualizado_em")
+  
+  empresa                 Empresa     @relation(fields: [empresaId], references: [id])
+  tomador                 Tomador     @relation(fields: [tomadorId], references: [id])
+  localPrestacao          Municipio?  @relation(fields: [localPrestacaoMunicipioCodigo], references: [codigo])
+  notaSubstituida         NotaFiscal? @relation("NotaSubstituicao", fields: [notaSubstituidaId], references: [id])
+  notasSubstitutas        NotaFiscal[] @relation("NotaSubstituicao")
+
+  @@index([empresaId])
+  @@index([tomadorId])
+  @@index([status])
+  @@index([competencia])
+  @@map("notas_fiscais")
+  @@schema("core")
+}
+
+model Guia {
+  id               String      @id @default(uuid()) @db.Uuid
+  empresaId        String      @map("empresa_id") @db.Uuid
+  tipo             TipoGuia
+  competencia      DateTime    @db.Date
+  dataVencimento   DateTime    @map("data_vencimento") @db.Date
+  dataPagamento    DateTime?   @map("data_pagamento") @db.Date
+  valor            Decimal     @db.Decimal(15, 2)
+  valorPago        Decimal?    @map("valor_pago") @db.Decimal(15, 2)
+  juros            Decimal     @default(0) @db.Decimal(15, 2)
+  multa            Decimal     @default(0) @db.Decimal(15, 2)
+  codigoBarras     String?     @map("codigo_barras")
+  linhaDigitavel   String?     @map("linha_digitavel")
+  numeroDocumento  String?     @map("numero_documento") @db.VarChar(50)
+  status           StatusGuia  @default(PENDENTE)
+  observacoes      String?
+  pdfUrl           String?     @map("pdf_url")
+  criadoEm         DateTime    @default(now()) @map("criado_em")
+  atualizadoEm     DateTime    @updatedAt @map("atualizado_em")
+  
+  empresa          Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId])
+  @@index([status])
+  @@index([dataVencimento])
+  @@map("guias")
+  @@schema("core")
+}
+
+model Documento {
+  id               String          @id @default(uuid()) @db.Uuid
+  empresaId        String          @map("empresa_id") @db.Uuid
+  tipo             TipoDocumento
+  titulo           String          @db.VarChar(200)
+  descricao        String?
+  nomeArquivo      String          @map("nome_arquivo") @db.VarChar(255)
+  caminhoArquivo   String          @map("caminho_arquivo")
+  tamanhoBytes     BigInt          @map("tamanho_bytes")
+  mimeType         String          @map("mime_type") @db.VarChar(100)
+  hashArquivo      String?         @map("hash_arquivo") @db.VarChar(64)
+  versao           Int             @default(1)
+  documentoOriginalId String?      @map("documento_original_id") @db.Uuid
+  status           StatusDocumento @default(ATIVO)
+  criadoEm         DateTime        @default(now()) @map("criado_em")
+  atualizadoEm     DateTime        @updatedAt @map("atualizado_em")
+  
+  empresa          Empresa         @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  documentoOriginal Documento?     @relation("DocumentoVersao", fields: [documentoOriginalId], references: [id])
+  versoes          Documento[]     @relation("DocumentoVersao")
+  acessos          AcessoDocumento[]
+
+  @@index([empresaId])
+  @@index([tipo])
+  @@map("documentos")
+  @@schema("core")
+}
+
+// ===========================================
+// COMM SCHEMA - Comunicação
+// ===========================================
+
+model Notificacao {
+  id           String            @id @default(uuid()) @db.Uuid
+  usuarioId    String            @map("usuario_id") @db.Uuid
+  tipo         TipoNotificacao
+  canal        CanalNotificacao
+  titulo       String            @db.VarChar(200)
+  mensagem     String
+  dados        Json?
+  link         String?
+  status       StatusNotificacao @default(PENDENTE)
+  enviadaEm    DateTime?         @map("enviada_em")
+  lidaEm       DateTime?         @map("lida_em")
+  criadoEm     DateTime          @default(now()) @map("criado_em")
+  
+  usuario      Usuario           @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([status])
+  @@map("notificacoes")
+  @@schema("comm")
+}
+
+model ConfiguracaoNotificacao {
+  id               String           @id @default(uuid()) @db.Uuid
+  usuarioId        String           @map("usuario_id") @db.Uuid
+  tipo             TipoNotificacao
+  canal            CanalNotificacao
+  ativo            Boolean          @default(true)
+  criadoEm         DateTime         @default(now()) @map("criado_em")
+  atualizadoEm     DateTime         @updatedAt @map("atualizado_em")
+  
+  usuario          Usuario          @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, tipo, canal])
+  @@map("configuracoes_notificacao")
+  @@schema("comm")
+}
+
+model Mensagem {
+  id              String    @id @default(uuid()) @db.Uuid
+  remetenteId     String    @map("remetente_id") @db.Uuid
+  destinatarioId  String    @map("destinatario_id") @db.Uuid
+  assunto         String?   @db.VarChar(200)
+  conteudo        String
+  lidaEm          DateTime? @map("lida_em")
+  arquivadaRemetente     Boolean @default(false) @map("arquivada_remetente")
+  arquivadaDestinatario  Boolean @default(false) @map("arquivada_destinatario")
+  criadoEm        DateTime  @default(now()) @map("criado_em")
+  
+  remetente       Usuario   @relation("MensagemRemetente", fields: [remetenteId], references: [id])
+  destinatario    Usuario   @relation("MensagemDestinatario", fields: [destinatarioId], references: [id])
+
+  @@index([remetenteId])
+  @@index([destinatarioId])
+  @@map("mensagens")
+  @@schema("comm")
+}
+
+model Ticket {
+  id              String           @id @default(uuid()) @db.Uuid
+  empresaId       String           @map("empresa_id") @db.Uuid
+  criadorId       String           @map("criador_id") @db.Uuid
+  atribuidoId     String?          @map("atribuido_id") @db.Uuid
+  titulo          String           @db.VarChar(200)
+  descricao       String
+  categoria       String           @db.VarChar(50)
+  prioridade      PrioridadeTicket @default(MEDIA)
+  status          StatusTicket     @default(ABERTO)
+  prazoResposta   DateTime?        @map("prazo_resposta")
+  resolvidoEm     DateTime?        @map("resolvido_em")
+  fechadoEm       DateTime?        @map("fechado_em")
+  criadoEm        DateTime         @default(now()) @map("criado_em")
+  atualizadoEm    DateTime         @updatedAt @map("atualizado_em")
+  
+  empresa         Empresa          @relation(fields: [empresaId], references: [id])
+  criador         Usuario          @relation("TicketCriador", fields: [criadorId], references: [id])
+  atribuido       Usuario?         @relation("TicketAtribuido", fields: [atribuidoId], references: [id])
+  comentarios     TicketComentario[]
+
+  @@index([empresaId])
+  @@index([status])
+  @@map("tickets")
+  @@schema("comm")
+}
+
+model TicketComentario {
+  id         String   @id @default(uuid()) @db.Uuid
+  ticketId   String   @map("ticket_id") @db.Uuid
+  usuarioId  String   @map("usuario_id") @db.Uuid
+  conteudo   String
+  interno    Boolean  @default(false)
+  criadoEm   DateTime @default(now()) @map("criado_em")
+  
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@map("ticket_comentarios")
+  @@schema("comm")
+}
+
+// ===========================================
+// AUDIT SCHEMA - Auditoria
+// ===========================================
+
+model Log {
+  id           String    @id @default(uuid()) @db.Uuid
+  usuarioId    String?   @map("usuario_id") @db.Uuid
+  acao         TipoAcao
+  tabela       String    @db.VarChar(100)
+  registroId   String?   @map("registro_id") @db.Uuid
+  dadosAntigos Json?     @map("dados_antigos")
+  dadosNovos   Json?     @map("dados_novos")
+  ip           String?   @db.VarChar(45)
+  userAgent    String?   @map("user_agent")
+  criadoEm     DateTime  @default(now()) @map("criado_em")
+  
+  usuario      Usuario?  @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
+  @@index([tabela])
+  @@index([criadoEm])
+  @@map("logs")
+  @@schema("audit")
+}
+
+model Sessao {
+  id            String    @id @default(uuid()) @db.Uuid
+  usuarioId     String    @map("usuario_id") @db.Uuid
+  token         String    @unique
+  refreshToken  String?   @unique @map("refresh_token")
+  ip            String?   @db.VarChar(45)
+  userAgent     String?   @map("user_agent")
+  expiraEm      DateTime  @map("expira_em")
+  criadoEm      DateTime  @default(now()) @map("criado_em")
+  encerradoEm   DateTime? @map("encerrado_em")
+  
+  usuario       Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([token])
+  @@map("sessoes")
+  @@schema("audit")
+}
+
+model AcessoDocumento {
+  id          String   @id @default(uuid()) @db.Uuid
+  documentoId String   @map("documento_id") @db.Uuid
+  usuarioId   String   @map("usuario_id") @db.Uuid
+  acao        String   @db.VarChar(20)
+  ip          String?  @db.VarChar(45)
+  criadoEm    DateTime @default(now()) @map("criado_em")
+  
+  documento   Documento @relation(fields: [documentoId], references: [id], onDelete: Cascade)
+  usuario     Usuario   @relation(fields: [usuarioId], references: [id])
+
+  @@map("acessos_documentos")
+  @@schema("audit")
+}

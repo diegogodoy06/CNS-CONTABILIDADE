@@ -51,6 +51,10 @@ import {
   Refresh as RefreshIcon,
   ContentCopy as CopyIcon,
   Business as BusinessIcon,
+  Restore as RestoreIcon,
+  DeleteForever as DeleteForeverIcon,
+  History as HistoryIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 
 interface Usuario {
@@ -63,6 +67,8 @@ interface Usuario {
   ultimoAcesso: string | null;
   convitePendente: boolean;
   criadoEm: string;
+  deletedAt?: string | null; // Soft delete timestamp
+  deletedBy?: string | null; // Quem excluiu
 }
 
 // Mock data
@@ -121,6 +127,21 @@ const MOCK_USUARIOS: Usuario[] = [
     ultimoAcesso: null,
     convitePendente: true,
     criadoEm: '2025-01-05T15:00:00',
+    deletedAt: null,
+    deletedBy: null,
+  },
+  {
+    id: '6',
+    nome: 'Roberto Lima',
+    email: 'roberto@empresa.com.br',
+    cpf: '654.987.321-00',
+    perfil: 'operador',
+    ativo: false,
+    ultimoAcesso: '2024-11-15T10:30:00',
+    convitePendente: false,
+    criadoEm: '2024-05-20T08:00:00',
+    deletedAt: '2025-01-08T14:30:00',
+    deletedBy: 'João da Silva',
   },
 ];
 
@@ -167,6 +188,9 @@ export default function UsuariosPage() {
   const [dialogConvite, setDialogConvite] = useState(false);
   const [dialogEditar, setDialogEditar] = useState(false);
   const [dialogExcluir, setDialogExcluir] = useState(false);
+  const [dialogRestaurar, setDialogRestaurar] = useState(false);
+  const [dialogExcluirPermanente, setDialogExcluirPermanente] = useState(false);
+  const [mostrarExcluidos, setMostrarExcluidos] = useState(false);
   const [linkConvite, setLinkConvite] = useState('');
 
   // Form states
@@ -251,10 +275,58 @@ export default function UsuariosPage() {
     setDialogExcluir(true);
   };
 
+  // Soft delete - marca como excluído mas mantém no banco
   const handleConfirmarExclusao = () => {
     if (usuarioSelecionado) {
-      setUsuarios(usuarios.filter(u => u.id !== usuarioSelecionado.id));
+      setUsuarios(usuarios.map(u =>
+        u.id === usuarioSelecionado.id
+          ? { 
+              ...u, 
+              deletedAt: new Date().toISOString(),
+              deletedBy: 'Usuário Atual', // Em produção, viria do contexto de auth
+              ativo: false,
+            }
+          : u
+      ));
       setDialogExcluir(false);
+      setUsuarioSelecionado(null);
+    }
+  };
+
+  // Restaurar usuário excluído
+  const handleRestaurar = () => {
+    handleMenuClose();
+    setDialogRestaurar(true);
+  };
+
+  const handleConfirmarRestauracao = () => {
+    if (usuarioSelecionado) {
+      setUsuarios(usuarios.map(u =>
+        u.id === usuarioSelecionado.id
+          ? { 
+              ...u, 
+              deletedAt: null,
+              deletedBy: null,
+              ativo: true,
+            }
+          : u
+      ));
+      setDialogRestaurar(false);
+      setUsuarioSelecionado(null);
+    }
+  };
+
+  // Exclusão permanente (hard delete)
+  const handleExcluirPermanente = () => {
+    handleMenuClose();
+    setDialogExcluirPermanente(true);
+  };
+
+  const handleConfirmarExclusaoPermanente = () => {
+    if (usuarioSelecionado) {
+      setUsuarios(usuarios.filter(u => u.id !== usuarioSelecionado.id));
+      setDialogExcluirPermanente(false);
+      setUsuarioSelecionado(null);
     }
   };
 
@@ -264,17 +336,26 @@ export default function UsuariosPage() {
     alert('Convite reenviado com sucesso!');
   };
 
-  const usuariosFiltrados = usuarios.filter(u =>
-    u.nome.toLowerCase().includes(busca.toLowerCase()) ||
-    u.email.toLowerCase().includes(busca.toLowerCase()) ||
-    u.cpf.includes(busca)
-  );
+  const usuariosFiltrados = usuarios.filter(u => {
+    const matchesBusca = u.nome.toLowerCase().includes(busca.toLowerCase()) ||
+      u.email.toLowerCase().includes(busca.toLowerCase()) ||
+      u.cpf.includes(busca);
+    
+    // Se estiver mostrando excluídos, filtra apenas os com deletedAt
+    if (mostrarExcluidos) {
+      return matchesBusca && u.deletedAt;
+    }
+    
+    // Senão, mostra apenas os não excluídos
+    return matchesBusca && !u.deletedAt;
+  });
 
   const stats = {
-    total: usuarios.length,
-    ativos: usuarios.filter(u => u.ativo && !u.convitePendente).length,
-    inativos: usuarios.filter(u => !u.ativo).length,
-    pendentes: usuarios.filter(u => u.convitePendente).length,
+    total: usuarios.filter(u => !u.deletedAt).length,
+    ativos: usuarios.filter(u => u.ativo && !u.convitePendente && !u.deletedAt).length,
+    inativos: usuarios.filter(u => !u.ativo && !u.deletedAt).length,
+    pendentes: usuarios.filter(u => u.convitePendente && !u.deletedAt).length,
+    excluidos: usuarios.filter(u => u.deletedAt).length,
   };
 
   return (
@@ -308,19 +389,35 @@ export default function UsuariosPage() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
           <Typography variant="h4" fontWeight="bold">
-            Usuários da Empresa
+            {mostrarExcluidos ? 'Usuários Excluídos' : 'Usuários da Empresa'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Gerencie os usuários que têm acesso a esta empresa
+            {mostrarExcluidos 
+              ? 'Usuários removidos que podem ser restaurados' 
+              : 'Gerencie os usuários que têm acesso a esta empresa'}
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleConvidar}
-        >
-          Convidar Usuário
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          {stats.excluidos > 0 && (
+            <Button
+              variant={mostrarExcluidos ? 'contained' : 'outlined'}
+              color={mostrarExcluidos ? 'error' : 'inherit'}
+              startIcon={<HistoryIcon />}
+              onClick={() => setMostrarExcluidos(!mostrarExcluidos)}
+            >
+              {mostrarExcluidos ? 'Ver Ativos' : `Excluídos (${stats.excluidos})`}
+            </Button>
+          )}
+          {!mostrarExcluidos && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleConvidar}
+            >
+              Convidar Usuário
+            </Button>
+          )}
+        </Box>
       </Box>
 
       {/* Stats Cards */}
@@ -400,37 +497,64 @@ export default function UsuariosPage() {
             <TableRow>
               <TableCell>Usuário</TableCell>
               <TableCell>Perfil</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Último Acesso</TableCell>
+              <TableCell>{mostrarExcluidos ? 'Excluído em' : 'Status'}</TableCell>
+              <TableCell>{mostrarExcluidos ? 'Excluído por' : 'Último Acesso'}</TableCell>
               <TableCell align="right">Ações</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {usuariosFiltrados.map((usuario) => (
-              <TableRow 
-                key={usuario.id}
-                sx={{ 
-                  opacity: usuario.ativo ? 1 : 0.6,
-                  bgcolor: usuario.convitePendente 
-                    ? (theme) => alpha(theme.palette.warning.main, 0.05) 
-                    : 'inherit'
-                }}
-              >
-                <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Avatar sx={{ bgcolor: PERFIS[usuario.perfil].color + '.main' }}>
-                      {usuario.nome.charAt(0).toUpperCase()}
-                    </Avatar>
-                    <Box>
-                      <Typography variant="body2" fontWeight="medium">
-                        {usuario.nome}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {usuario.email}
-                      </Typography>
-                    </Box>
+            {usuariosFiltrados.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                  <Box sx={{ color: 'text.secondary' }}>
+                    {mostrarExcluidos ? (
+                      <>
+                        <DeleteIcon sx={{ fontSize: 48, opacity: 0.3, mb: 1 }} />
+                        <Typography>Nenhum usuário excluído</Typography>
+                      </>
+                    ) : (
+                      <>
+                        <PersonIcon sx={{ fontSize: 48, opacity: 0.3, mb: 1 }} />
+                        <Typography>Nenhum usuário encontrado</Typography>
+                      </>
+                    )}
                   </Box>
                 </TableCell>
+              </TableRow>
+            ) : (
+              usuariosFiltrados.map((usuario) => (
+                <TableRow 
+                  key={usuario.id}
+                  sx={{ 
+                    opacity: usuario.deletedAt ? 0.7 : usuario.ativo ? 1 : 0.6,
+                    bgcolor: usuario.deletedAt
+                      ? (theme) => alpha(theme.palette.error.main, 0.05)
+                      : usuario.convitePendente 
+                      ? (theme) => alpha(theme.palette.warning.main, 0.05) 
+                      : 'inherit'
+                  }}
+                >
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Avatar 
+                        sx={{ 
+                          bgcolor: usuario.deletedAt 
+                            ? 'grey.400' 
+                            : PERFIS[usuario.perfil].color + '.main' 
+                        }}
+                      >
+                        {usuario.nome.charAt(0).toUpperCase()}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="body2" fontWeight="medium">
+                          {usuario.nome}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {usuario.email}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </TableCell>
                 <TableCell>
                   <Chip
                     icon={PERFIS[usuario.perfil].icon}
@@ -441,7 +565,17 @@ export default function UsuariosPage() {
                   />
                 </TableCell>
                 <TableCell>
-                  {usuario.convitePendente ? (
+                  {mostrarExcluidos && usuario.deletedAt ? (
+                    <Typography variant="body2">
+                      {new Date(usuario.deletedAt).toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Typography>
+                  ) : usuario.convitePendente ? (
                     <Chip
                       icon={<EmailIcon fontSize="small" />}
                       label="Convite Pendente"
@@ -465,7 +599,11 @@ export default function UsuariosPage() {
                   )}
                 </TableCell>
                 <TableCell>
-                  {usuario.ultimoAcesso ? (
+                  {mostrarExcluidos && usuario.deletedAt ? (
+                    <Typography variant="body2" color="text.secondary">
+                      {usuario.deletedBy || '-'}
+                    </Typography>
+                  ) : usuario.ultimoAcesso ? (
                     <Typography variant="body2">
                       {new Date(usuario.ultimoAcesso).toLocaleDateString('pt-BR', {
                         day: '2-digit',
@@ -487,7 +625,8 @@ export default function UsuariosPage() {
                   </IconButton>
                 </TableCell>
               </TableRow>
-            ))}
+              ))
+            )}
           </TableBody>
         </Table>
       </TableContainer>
@@ -498,39 +637,61 @@ export default function UsuariosPage() {
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
       >
-        {usuarioSelecionado?.convitePendente && (
-          <MenuItem onClick={handleReenviarConvite}>
-            <ListItemIcon>
-              <RefreshIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Reenviar Convite</ListItemText>
-          </MenuItem>
-        )}
-        <MenuItem onClick={handleEditar}>
-          <ListItemIcon>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Editar</ListItemText>
-        </MenuItem>
-        <MenuItem onClick={handleToggleAtivo}>
-          <ListItemIcon>
-            {usuarioSelecionado?.ativo ? (
-              <BlockIcon fontSize="small" />
-            ) : (
-              <CheckCircleIcon fontSize="small" />
+        {/* Menu para usuários excluídos (soft deleted) */}
+        {usuarioSelecionado?.deletedAt ? (
+          <>
+            <MenuItem onClick={handleRestaurar}>
+              <ListItemIcon>
+                <RestoreIcon fontSize="small" color="success" />
+              </ListItemIcon>
+              <ListItemText>Restaurar Usuário</ListItemText>
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={handleExcluirPermanente} sx={{ color: 'error.main' }}>
+              <ListItemIcon>
+                <DeleteForeverIcon fontSize="small" color="error" />
+              </ListItemIcon>
+              <ListItemText>Excluir Permanentemente</ListItemText>
+            </MenuItem>
+          </>
+        ) : (
+          /* Menu para usuários ativos */
+          <>
+            {usuarioSelecionado?.convitePendente && (
+              <MenuItem onClick={handleReenviarConvite}>
+                <ListItemIcon>
+                  <RefreshIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Reenviar Convite</ListItemText>
+              </MenuItem>
             )}
-          </ListItemIcon>
-          <ListItemText>
-            {usuarioSelecionado?.ativo ? 'Desativar' : 'Ativar'}
-          </ListItemText>
-        </MenuItem>
-        <Divider />
-        <MenuItem onClick={handleExcluir} sx={{ color: 'error.main' }}>
-          <ListItemIcon>
-            <DeleteIcon fontSize="small" color="error" />
-          </ListItemIcon>
-          <ListItemText>Excluir</ListItemText>
-        </MenuItem>
+            <MenuItem onClick={handleEditar}>
+              <ListItemIcon>
+                <EditIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Editar</ListItemText>
+            </MenuItem>
+            <MenuItem onClick={handleToggleAtivo}>
+              <ListItemIcon>
+                {usuarioSelecionado?.ativo ? (
+                  <BlockIcon fontSize="small" />
+                ) : (
+                  <CheckCircleIcon fontSize="small" />
+                )}
+              </ListItemIcon>
+              <ListItemText>
+                {usuarioSelecionado?.ativo ? 'Desativar' : 'Ativar'}
+              </ListItemText>
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={handleExcluir} sx={{ color: 'error.main' }}>
+              <ListItemIcon>
+                <DeleteIcon fontSize="small" color="error" />
+              </ListItemIcon>
+              <ListItemText>Excluir</ListItemText>
+            </MenuItem>
+          </>
+        )}
       </Menu>
 
       {/* Dialog Convidar Usuário */}
@@ -719,21 +880,152 @@ export default function UsuariosPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog Confirmar Exclusão */}
-      <Dialog open={dialogExcluir} onClose={() => setDialogExcluir(false)}>
-        <DialogTitle>Confirmar Exclusão</DialogTitle>
+      {/* Dialog Confirmar Exclusão (Soft Delete) */}
+      <Dialog open={dialogExcluir} onClose={() => setDialogExcluir(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <DeleteIcon color="error" />
+            Remover Usuário
+          </Box>
+        </DialogTitle>
         <DialogContent>
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            Esta ação não pode ser desfeita!
+          <Alert severity="info" sx={{ mb: 2 }}>
+            O usuário será removido mas poderá ser restaurado posteriormente se necessário.
           </Alert>
-          <Typography>
-            Tem certeza que deseja excluir o usuário <strong>{usuarioSelecionado?.nome}</strong>?
+          
+          <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50', mb: 2 }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Usuário a ser removido:
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar sx={{ bgcolor: PERFIS[usuarioSelecionado?.perfil || 'visualizador'].color + '.main' }}>
+                {usuarioSelecionado?.nome?.charAt(0).toUpperCase()}
+              </Avatar>
+              <Box>
+                <Typography variant="body1" fontWeight="medium">
+                  {usuarioSelecionado?.nome}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {usuarioSelecionado?.email}
+                </Typography>
+              </Box>
+            </Box>
+          </Paper>
+
+          <Typography variant="body2" color="text.secondary">
+            O usuário perderá imediatamente o acesso ao sistema. Você poderá restaurá-lo 
+            a qualquer momento através da seção "Usuários Excluídos".
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogExcluir(false)}>Cancelar</Button>
           <Button variant="contained" color="error" onClick={handleConfirmarExclusao}>
-            Excluir
+            Remover Usuário
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog Restaurar Usuário */}
+      <Dialog open={dialogRestaurar} onClose={() => setDialogRestaurar(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <RestoreIcon color="success" />
+            Restaurar Usuário
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="success" sx={{ mb: 2 }}>
+            O usuário será restaurado e poderá acessar o sistema novamente.
+          </Alert>
+          
+          <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50', mb: 2 }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Usuário a ser restaurado:
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar sx={{ bgcolor: PERFIS[usuarioSelecionado?.perfil || 'visualizador'].color + '.main' }}>
+                {usuarioSelecionado?.nome?.charAt(0).toUpperCase()}
+              </Avatar>
+              <Box>
+                <Typography variant="body1" fontWeight="medium">
+                  {usuarioSelecionado?.nome}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {usuarioSelecionado?.email}
+                </Typography>
+                {usuarioSelecionado?.deletedAt && (
+                  <Typography variant="caption" color="text.secondary">
+                    Removido em: {new Date(usuarioSelecionado.deletedAt).toLocaleDateString('pt-BR')}
+                    {usuarioSelecionado.deletedBy && ` por ${usuarioSelecionado.deletedBy}`}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          </Paper>
+
+          <Typography variant="body2" color="text.secondary">
+            O usuário será reativado com o perfil de <strong>{PERFIS[usuarioSelecionado?.perfil || 'visualizador'].label}</strong>.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogRestaurar(false)}>Cancelar</Button>
+          <Button variant="contained" color="success" onClick={handleConfirmarRestauracao}>
+            Restaurar Usuário
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog Exclusão Permanente */}
+      <Dialog open={dialogExcluirPermanente} onClose={() => setDialogExcluirPermanente(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'error.main' }}>
+            <DeleteForeverIcon />
+            Exclusão Permanente
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 2 }} icon={<WarningIcon />}>
+            <strong>Atenção!</strong> Esta ação é irreversível e não pode ser desfeita.
+          </Alert>
+          
+          <Paper variant="outlined" sx={{ p: 2, bgcolor: 'error.50', mb: 2, borderColor: 'error.main' }}>
+            <Typography variant="body2" color="error.main" gutterBottom>
+              Usuário a ser excluído permanentemente:
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar sx={{ bgcolor: 'error.main' }}>
+                {usuarioSelecionado?.nome?.charAt(0).toUpperCase()}
+              </Avatar>
+              <Box>
+                <Typography variant="body1" fontWeight="medium">
+                  {usuarioSelecionado?.nome}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {usuarioSelecionado?.email}
+                </Typography>
+              </Box>
+            </Box>
+          </Paper>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Todos os dados do usuário serão removidos permanentemente do sistema:
+          </Typography>
+          
+          <Box component="ul" sx={{ m: 0, pl: 2, color: 'text.secondary' }}>
+            <Typography component="li" variant="body2">Histórico de acessos</Typography>
+            <Typography component="li" variant="body2">Logs de atividades</Typography>
+            <Typography component="li" variant="body2">Preferências e configurações</Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogExcluirPermanente(false)}>Cancelar</Button>
+          <Button 
+            variant="contained" 
+            color="error" 
+            onClick={handleConfirmarExclusaoPermanente}
+            startIcon={<DeleteForeverIcon />}
+          >
+            Excluir Permanentemente
           </Button>
         </DialogActions>
       </Dialog>

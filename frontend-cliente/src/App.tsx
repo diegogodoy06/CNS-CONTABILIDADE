@@ -19,7 +19,7 @@ const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPag
 const DocumentsPage = lazy(() => import('./features/documents/pages/DocumentsPage'));
 const NotasPage = lazy(() => import('./features/notas/pages/NotasPage'));
 const EmitirNotaPage = lazy(() => import('./features/notas/pages/EmitirNotaPage'));
-const RascunhosPage = lazy(() => import('./features/notas/pages/RascunhosPage'));
+// RascunhosPage removida - unificada com NotasPage (aba 2)
 const GuiasPage = lazy(() => import('./features/guias/pages/GuiasPage'));
 const TomadoresPage = lazy(() => import('./features/tomadores/pages/TomadoresPage'));
 const CalendarioPage = lazy(() => import('./features/calendario/pages/CalendarioPage'));
@@ -32,6 +32,7 @@ const TicketsPage = lazy(() => import('./features/comunicacao/pages/TicketsPage'
 const AjudaPage = lazy(() => import('./features/comunicacao/pages/AjudaPage'));
 const UsuariosPage = lazy(() => import('./features/usuarios/pages/UsuariosPage'));
 const DispositivosPage = lazy(() => import('./features/auth/pages/DispositivosPage'));
+const PerfilPage = lazy(() => import('./features/perfil/pages/PerfilPage'));
 
 // Loading fallback component
 const PageLoader: React.FC = () => (
@@ -146,7 +147,7 @@ const AppContent: React.FC = () => {
                 <Route path="documentos" element={<DocumentsPage />} />
                 <Route path="notas" element={<NotasPage />} />
                 <Route path="notas/emitir" element={<EmitirNotaPage />} />
-                <Route path="notas/rascunhos" element={<RascunhosPage />} />
+                <Route path="notas/rascunhos" element={<Navigate to="/notas?tab=rascunhos" replace />} />
                 <Route path="guias" element={<GuiasPage />} />
                 <Route path="tomadores" element={<TomadoresPage />} />
                 <Route path="calendario" element={<CalendarioPage />} />
@@ -170,8 +171,8 @@ const AppContent: React.FC = () => {
                 {/* Segurança */}
                 <Route path="seguranca/dispositivos" element={<DispositivosPage />} />
                 
-                {/* Future routes */}
-                <Route path="perfil" element={<ComingSoon title="Meu Perfil" />} />
+                {/* Perfil do Usuário */}
+                <Route path="perfil" element={<PerfilPage />} />
                 
                 {/* 404 inside authenticated area */}
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />

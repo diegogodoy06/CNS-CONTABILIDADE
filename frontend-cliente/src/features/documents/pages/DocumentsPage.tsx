@@ -71,6 +71,7 @@ import {
   DocumentBreadcrumbs,
   BatchDownloadDialog,
   ShareDocumentDialog,
+  HistoricoAcessosDialog,
 } from '../components';
 
 // Extended mock data
@@ -299,6 +300,8 @@ const DocumentsPage: React.FC = () => {
   const [batchDownloadOpen, setBatchDownloadOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareDocument, setShareDocument] = useState<DocType | null>(null);
+  const [historicoAcessosOpen, setHistoricoAcessosOpen] = useState(false);
+  const [historicoDocument, setHistoricoDocument] = useState<DocType | null>(null);
   
   // Menu state
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -586,13 +589,24 @@ const DocumentsPage: React.FC = () => {
               </Typography>
             </Box>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<Upload />}
-            onClick={() => setUploadDialogOpen(true)}
-          >
-            Upload
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Tooltip title="Histórico de Acessos">
+              <Button
+                variant="outlined"
+                startIcon={<History />}
+                onClick={() => setHistoricoAcessosOpen(true)}
+              >
+                Histórico
+              </Button>
+            </Tooltip>
+            <Button
+              variant="contained"
+              startIcon={<Upload />}
+              onClick={() => setUploadDialogOpen(true)}
+            >
+              Upload
+            </Button>
+          </Box>
         </Box>
 
         {/* Breadcrumbs */}
@@ -892,6 +906,18 @@ const DocumentsPage: React.FC = () => {
           </ListItemIcon>
           Compartilhar
         </MenuItem>
+        <MenuItem onClick={() => {
+          if (menuDocument) {
+            setHistoricoDocument(menuDocument);
+            setHistoricoAcessosOpen(true);
+          }
+          handleMenuClose();
+        }}>
+          <ListItemIcon>
+            <History fontSize="small" />
+          </ListItemIcon>
+          Histórico de Acessos
+        </MenuItem>
         <MenuItem onClick={handleMenuClose}>
           <ListItemIcon>
             <History fontSize="small" />
@@ -980,6 +1006,16 @@ const DocumentsPage: React.FC = () => {
             severity: 'success',
           });
         }}
+      />
+
+      {/* Histórico de Acessos Dialog */}
+      <HistoricoAcessosDialog
+        open={historicoAcessosOpen}
+        onClose={() => {
+          setHistoricoAcessosOpen(false);
+          setHistoricoDocument(null);
+        }}
+        documento={historicoDocument}
       />
 
       {/* Snackbar */}

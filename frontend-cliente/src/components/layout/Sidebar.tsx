@@ -50,7 +50,6 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   { path: '/dashboard', label: 'Início', icon: <Dashboard /> },
   { path: '/notas', label: 'Notas Fiscais', icon: <Receipt /> },
-  { path: '/notas/rascunhos', label: 'Rascunhos', icon: <Drafts />, badge: 5 },
   { path: '/guias', label: 'Impostos', icon: <Payment />, badge: 3 }, // 3 guias pendentes
   { path: '/documentos', label: 'Documentos', icon: <Description /> },
   { path: '/tomadores', label: 'Tomadores', icon: <People /> },

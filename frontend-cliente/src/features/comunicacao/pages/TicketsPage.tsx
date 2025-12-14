@@ -50,6 +50,10 @@ import {
   CalendarMonth,
   PriorityHigh,
   Info,
+  Timer,
+  Schedule,
+  Warning,
+  Star,
 } from '@mui/icons-material';
 
 // Tipos
@@ -66,6 +70,12 @@ interface Ticket {
   atendente?: string;
   mensagens: TicketMessage[];
   avaliacao?: number;
+  comentarioAvaliacao?: string;
+  // Campos de SLA
+  sla: {
+    primeiraResposta: { prazo: Date; cumprido?: boolean; dataReal?: Date };
+    resolucao: { prazo: Date; cumprido?: boolean; dataReal?: Date };
+  };
 }
 
 interface TicketMessage {
@@ -107,6 +117,19 @@ const mockTickets: Ticket[] = [
       },
     ],
     avaliacao: 5,
+    comentarioAvaliacao: 'Excelente atendimento!',
+    sla: {
+      primeiraResposta: { 
+        prazo: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3 + 1000 * 60 * 60 * 4), 
+        cumprido: true, 
+        dataReal: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2)
+      },
+      resolucao: { 
+        prazo: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1), 
+        cumprido: true, 
+        dataReal: new Date(Date.now() - 1000 * 60 * 60 * 2)
+      },
+    },
   },
   {
     id: '2',
@@ -135,6 +158,17 @@ const mockTickets: Ticket[] = [
         data: new Date(Date.now() - 1000 * 60 * 60 * 20),
       },
     ],
+    sla: {
+      primeiraResposta: { 
+        prazo: new Date(Date.now() - 1000 * 60 * 60 * 22), 
+        cumprido: true, 
+        dataReal: new Date(Date.now() - 1000 * 60 * 60 * 20)
+      },
+      resolucao: { 
+        prazo: new Date(Date.now() + 1000 * 60 * 60 * 8), // 8 horas restantes
+        cumprido: false,
+      },
+    },
   },
   {
     id: '3',
@@ -155,6 +189,16 @@ const mockTickets: Ticket[] = [
         data: new Date(Date.now() - 1000 * 60 * 60 * 2),
       },
     ],
+    sla: {
+      primeiraResposta: { 
+        prazo: new Date(Date.now() + 1000 * 60 * 60 * 22), // 22 horas restantes
+        cumprido: false,
+      },
+      resolucao: { 
+        prazo: new Date(Date.now() + 1000 * 60 * 60 * 72), // 72 horas restantes
+        cumprido: false,
+      },
+    },
   },
 ];
 
@@ -170,6 +214,7 @@ const TicketsPage: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [openRating, setOpenRating] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
+  const [ratingComment, setRatingComment] = useState('');
   
   // Novo ticket
   const [newTicket, setNewTicket] = useState({
@@ -178,6 +223,65 @@ const TicketsPage: React.FC = () => {
     prioridade: 'media',
     descricao: '',
   });
+
+  // Função para calcular tempo restante do SLA
+  const getSlaTimeRemaining = (prazo: Date): { text: string; status: 'ok' | 'warning' | 'danger' | 'expired' } => {
+    const now = new Date();
+    const diff = prazo.getTime() - now.getTime();
+    
+    if (diff <= 0) {
+      return { text: 'Expirado', status: 'expired' };
+    }
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 24) {
+      const days = Math.floor(hours / 24);
+      return { text: `${days}d ${hours % 24}h`, status: 'ok' };
+    } else if (hours > 4) {
+      return { text: `${hours}h ${minutes}m`, status: 'ok' };
+    } else if (hours > 1) {
+      return { text: `${hours}h ${minutes}m`, status: 'warning' };
+    } else {
+      return { text: `${minutes}m`, status: 'danger' };
+    }
+  };
+
+  // Componente de indicador SLA
+  const SlaIndicator = ({ sla, label }: { sla: { prazo: Date; cumprido?: boolean; dataReal?: Date }; label: string }) => {
+    if (sla.cumprido) {
+      return (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <CheckCircle sx={{ fontSize: 16, color: 'success.main' }} />
+          <Typography variant="caption" color="success.main">
+            {label} - Cumprido
+          </Typography>
+        </Box>
+      );
+    }
+    
+    const timeInfo = getSlaTimeRemaining(sla.prazo);
+    const color = {
+      ok: 'success.main',
+      warning: 'warning.main',
+      danger: 'error.main',
+      expired: 'error.main',
+    }[timeInfo.status];
+
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        {timeInfo.status === 'expired' ? (
+          <Warning sx={{ fontSize: 16, color }} />
+        ) : (
+          <Timer sx={{ fontSize: 16, color }} />
+        )}
+        <Typography variant="caption" sx={{ color }}>
+          {label}: {timeInfo.text}
+        </Typography>
+      </Box>
+    );
+  };
 
   const getStatusColor = (status: Ticket['status']) => {
     const colors: Record<Ticket['status'], 'default' | 'primary' | 'warning' | 'success' | 'error'> = {
@@ -252,6 +356,17 @@ const TicketsPage: React.FC = () => {
   });
 
   const handleCreateTicket = () => {
+    // Calcular SLA baseado na prioridade
+    const slaPrazos = {
+      urgente: { primeiraResposta: 2, resolucao: 8 },
+      alta: { primeiraResposta: 4, resolucao: 24 },
+      media: { primeiraResposta: 8, resolucao: 48 },
+      baixa: { primeiraResposta: 24, resolucao: 72 },
+    };
+
+    const prazos = slaPrazos[newTicket.prioridade as keyof typeof slaPrazos];
+    const now = new Date();
+
     const ticket: Ticket = {
       id: Date.now().toString(),
       numero: `TK-2025-${String(tickets.length + 1237).padStart(6, '0')}`,
@@ -260,17 +375,27 @@ const TicketsPage: React.FC = () => {
       categoria: newTicket.categoria as Ticket['categoria'],
       prioridade: newTicket.prioridade as Ticket['prioridade'],
       status: 'aberto',
-      dataCriacao: new Date(),
-      dataAtualizacao: new Date(),
+      dataCriacao: now,
+      dataAtualizacao: now,
       mensagens: [
         {
           id: '1',
           texto: newTicket.descricao,
           autor: 'cliente',
           nomeAutor: 'Você',
-          data: new Date(),
+          data: now,
         },
       ],
+      sla: {
+        primeiraResposta: {
+          prazo: new Date(now.getTime() + prazos.primeiraResposta * 60 * 60 * 1000),
+          cumprido: false,
+        },
+        resolucao: {
+          prazo: new Date(now.getTime() + prazos.resolucao * 60 * 60 * 1000),
+          cumprido: false,
+        },
+      },
     };
 
     setTickets([ticket, ...tickets]);
@@ -438,6 +563,7 @@ const TicketsPage: React.FC = () => {
                     <TableRow>
                       <TableCell>Ticket</TableCell>
                       <TableCell>Status</TableCell>
+                      <TableCell>SLA</TableCell>
                       <TableCell>Prioridade</TableCell>
                       <TableCell>Atualizado</TableCell>
                     </TableRow>
@@ -474,6 +600,26 @@ const TicketsPage: React.FC = () => {
                           />
                         </TableCell>
                         <TableCell>
+                          {!['resolvido', 'fechado'].includes(ticket.status) ? (
+                            <SlaIndicator sla={ticket.sla.resolucao} label="Resolução" />
+                          ) : (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              {ticket.avaliacao ? (
+                                <>
+                                  <Star sx={{ fontSize: 16, color: 'warning.main' }} />
+                                  <Typography variant="caption" color="warning.main">
+                                    {ticket.avaliacao}/5
+                                  </Typography>
+                                </>
+                              ) : (
+                                <Typography variant="caption" color="text.secondary">
+                                  Concluído
+                                </Typography>
+                              )}
+                            </Box>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           <Chip
                             label={ticket.prioridade}
                             size="small"
@@ -490,7 +636,7 @@ const TicketsPage: React.FC = () => {
                     ))}
                     {filteredTickets.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                        <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
                           <Typography color="text.secondary">
                             Nenhum ticket encontrado
                           </Typography>
@@ -577,6 +723,46 @@ const TicketsPage: React.FC = () => {
                           </Button>
                         )}
                       </Box>
+                      {selectedTicket.comentarioAvaliacao && (
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                          "{selectedTicket.comentarioAvaliacao}"
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
+
+                  {/* SLA Info para tickets não resolvidos */}
+                  {!['resolvido', 'fechado'].includes(selectedTicket.status) && (
+                    <Box sx={{ 
+                      mt: 2, 
+                      p: 2, 
+                      bgcolor: alpha(theme.palette.info.main, 0.05), 
+                      borderRadius: 2,
+                      border: '1px solid',
+                      borderColor: alpha(theme.palette.info.main, 0.2),
+                    }}>
+                      <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Schedule fontSize="small" />
+                        SLA do Ticket
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid item xs={6}>
+                          <Box sx={{ p: 1.5, bgcolor: 'background.paper', borderRadius: 1 }}>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Primeira Resposta
+                            </Typography>
+                            <SlaIndicator sla={selectedTicket.sla.primeiraResposta} label="" />
+                          </Box>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Box sx={{ p: 1.5, bgcolor: 'background.paper', borderRadius: 1 }}>
+                            <Typography variant="caption" color="text.secondary" display="block">
+                              Resolução
+                            </Typography>
+                            <SlaIndicator sla={selectedTicket.sla.resolucao} label="" />
+                          </Box>
+                        </Grid>
+                      </Grid>
                     </Box>
                   )}
                 </Box>
@@ -734,34 +920,79 @@ const TicketsPage: React.FC = () => {
       </Dialog>
 
       {/* Dialog Avaliação */}
-      <Dialog open={openRating} onClose={() => setOpenRating(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Avaliar Atendimento</DialogTitle>
+      <Dialog open={openRating} onClose={() => setOpenRating(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Star color="warning" />
+            Avaliar Atendimento
+          </Box>
+        </DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, py: 2 }}>
-            <Typography variant="body1">Como foi seu atendimento?</Typography>
-            <Rating
-              value={rating}
-              onChange={(_, value) => setRating(value)}
-              size="large"
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, py: 2 }}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="body1" gutterBottom>
+                Como você avalia o atendimento deste ticket?
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {selectedTicket?.atendente ? `Atendido por ${selectedTicket.atendente}` : 'Avalie o suporte recebido'}
+              </Typography>
+              <Box sx={{ mt: 2 }}>
+                <Rating
+                  value={rating}
+                  onChange={(_, value) => setRating(value)}
+                  size="large"
+                  sx={{ fontSize: 48 }}
+                />
+                {rating && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    {rating === 1 && 'Muito insatisfeito'}
+                    {rating === 2 && 'Insatisfeito'}
+                    {rating === 3 && 'Neutro'}
+                    {rating === 4 && 'Satisfeito'}
+                    {rating === 5 && 'Muito satisfeito'}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+            
+            <TextField
+              label="Deixe um comentário (opcional)"
+              multiline
+              rows={3}
+              value={ratingComment}
+              onChange={(e) => setRatingComment(e.target.value)}
+              placeholder="Conte-nos como foi sua experiência..."
+              fullWidth
             />
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpenRating(false)}>Cancelar</Button>
+          <Button onClick={() => {
+            setOpenRating(false);
+            setRating(null);
+            setRatingComment('');
+          }}>
+            Cancelar
+          </Button>
           <Button
             variant="contained"
             onClick={() => {
               if (selectedTicket && rating) {
-                const updated = { ...selectedTicket, avaliacao: rating };
+                const updated = { 
+                  ...selectedTicket, 
+                  avaliacao: rating,
+                  comentarioAvaliacao: ratingComment || undefined,
+                };
                 setTickets(tickets.map((t) => (t.id === selectedTicket.id ? updated : t)));
                 setSelectedTicket(updated);
               }
               setOpenRating(false);
               setRating(null);
+              setRatingComment('');
             }}
             disabled={!rating}
           >
-            Enviar
+            Enviar Avaliação
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -22,6 +22,12 @@ import {
   Chip,
   useTheme,
   alpha,
+  IconButton,
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   PictureAsPdf,
@@ -33,6 +39,11 @@ import {
   CalendarMonth,
   FilterList,
   Refresh,
+  Image as ImageIcon,
+  ZoomIn,
+  Close,
+  Business,
+  ReceiptLong,
 } from '@mui/icons-material';
 import {
   BarChart,
@@ -88,6 +99,25 @@ const mockNotasPorStatus = [
   { name: 'Pendentes', value: 12, color: '#ff9800' },
 ];
 
+// Mock data para drill-down (notas por mês)
+const mockNotasPorMes: Record<string, { numero: string; tomador: string; valor: number; data: string; status: string }[]> = {
+  'Jan': [
+    { numero: '000001', tomador: 'ABC Tecnologia', valor: 15000, data: '10/01/2025', status: 'emitida' },
+    { numero: '000002', tomador: 'XYZ Consultoria', valor: 12000, data: '15/01/2025', status: 'emitida' },
+    { numero: '000003', tomador: 'Tech Solutions', valor: 18000, data: '20/01/2025', status: 'emitida' },
+  ],
+  'Fev': [
+    { numero: '000004', tomador: 'Empresa Inovadora', valor: 22000, data: '05/02/2025', status: 'emitida' },
+    { numero: '000005', tomador: 'Serviços Premium', valor: 18000, data: '12/02/2025', status: 'emitida' },
+    { numero: '000006', tomador: 'ABC Tecnologia', valor: 12000, data: '25/02/2025', status: 'emitida' },
+  ],
+  'Mar': [
+    { numero: '000007', tomador: 'Nova Cliente', valor: 25000, data: '08/03/2025', status: 'emitida' },
+    { numero: '000008', tomador: 'XYZ Consultoria', valor: 23000, data: '18/03/2025', status: 'cancelada' },
+  ],
+  // ... outros meses teriam dados similares
+};
+
 interface TabPanelProps {
   children?: React.ReactNode;
   index: number;
@@ -105,6 +135,18 @@ const RelatoriosPage: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [periodoSelecionado, setPeriodoSelecionado] = useState('2025');
   const [competencia, setCompetencia] = useState('12/2025');
+  
+  // States para drill-down
+  const [drillDownOpen, setDrillDownOpen] = useState(false);
+  const [drillDownData, setDrillDownData] = useState<{
+    titulo: string;
+    mes: string;
+    dados: typeof mockNotasPorMes['Jan'];
+  } | null>(null);
+
+  // Refs para exportação PNG
+  const chartFaturamentoRef = useRef<HTMLDivElement>(null);
+  const chartStatusRef = useRef<HTMLDivElement>(null);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -132,6 +174,69 @@ const RelatoriosPage: React.FC = () => {
     // Implementar exportação Excel
     console.log('Exportando Excel...');
   };
+
+  // Função para exportar gráfico como PNG (usando SVG nativo do Recharts)
+  const handleExportPNG = useCallback(async (chartRef: React.RefObject<HTMLDivElement>, filename: string) => {
+    if (!chartRef.current) return;
+
+    const svg = chartRef.current.querySelector('svg');
+    if (!svg) return;
+
+    try {
+      // Clonar SVG para manipulação
+      const clonedSvg = svg.cloneNode(true) as SVGElement;
+      const svgData = new XMLSerializer().serializeToString(clonedSvg);
+      
+      // Criar canvas
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      // Configurar dimensões com escala 2x para melhor qualidade
+      const bbox = svg.getBoundingClientRect();
+      canvas.width = bbox.width * 2;
+      canvas.height = bbox.height * 2;
+      
+      img.onload = () => {
+        if (ctx) {
+          // Fundo branco
+          ctx.fillStyle = theme.palette.background.paper;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.scale(2, 2);
+          ctx.drawImage(img, 0, 0);
+          
+          // Download
+          const link = document.createElement('a');
+          link.download = `${filename}_${new Date().toISOString().split('T')[0]}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+        }
+      };
+      
+      img.onerror = () => {
+        console.error('Erro ao carregar imagem SVG');
+      };
+      
+      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    } catch (error) {
+      console.error('Erro ao exportar PNG:', error);
+    }
+  }, [theme.palette.background.paper]);
+
+  // Handler para drill-down ao clicar no gráfico
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleBarClick = useCallback((data: any) => {
+    if (data?.activePayload?.[0]?.payload) {
+      const payload = data.activePayload[0].payload as { mes: string; faturamento: number };
+      const notas = mockNotasPorMes[payload.mes] || [];
+      setDrillDownData({
+        titulo: `Detalhamento - ${payload.mes}/2025`,
+        mes: payload.mes,
+        dados: notas,
+      });
+      setDrillDownOpen(true);
+    }
+  }, []);
 
   return (
     <Box>
@@ -353,15 +458,25 @@ const RelatoriosPage: React.FC = () => {
             <Grid container spacing={3}>
               {/* Gráfico de Faturamento x Impostos */}
               <Grid item xs={12} lg={8}>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    Faturamento vs Impostos
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Evolução mensal do faturamento e tributos
-                  </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                  <Box>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      Faturamento vs Impostos
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Evolução mensal do faturamento e tributos (clique para detalhes)
+                    </Typography>
+                  </Box>
+                  <Tooltip title="Exportar como PNG">
+                    <IconButton 
+                      size="small" 
+                      onClick={() => handleExportPNG(chartFaturamentoRef, 'faturamento_impostos')}
+                    >
+                      <ImageIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </Box>
-                <Box sx={{ height: 350 }}>
+                <Box sx={{ height: 350 }} ref={chartFaturamentoRef}>
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={mockFaturamentoMensal}>
                       <defs>
@@ -412,15 +527,25 @@ const RelatoriosPage: React.FC = () => {
 
               {/* Gráfico de Pizza - Status das Notas */}
               <Grid item xs={12} lg={4}>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    Status das Notas
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Distribuição por status
-                  </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                  <Box>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      Status das Notas
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Distribuição por status
+                    </Typography>
+                  </Box>
+                  <Tooltip title="Exportar como PNG">
+                    <IconButton 
+                      size="small" 
+                      onClick={() => handleExportPNG(chartStatusRef, 'status_notas')}
+                    >
+                      <ImageIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </Box>
-                <Box sx={{ height: 350 }}>
+                <Box sx={{ height: 350 }} ref={chartStatusRef}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -458,10 +583,10 @@ const RelatoriosPage: React.FC = () => {
               </Typography>
             </Box>
 
-            {/* Gráfico de Barras */}
+            {/* Gráfico de Barras - Clique para drill-down */}
             <Box sx={{ height: 400, mb: 4 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mockFaturamentoMensal}>
+                <BarChart data={mockFaturamentoMensal} onClick={handleBarClick}>
                   <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
                   <XAxis dataKey="mes" stroke={theme.palette.text.secondary} />
                   <YAxis 
@@ -481,9 +606,13 @@ const RelatoriosPage: React.FC = () => {
                     name="Faturamento"
                     fill={theme.palette.primary.main} 
                     radius={[4, 4, 0, 0]}
+                    cursor="pointer"
                   />
                 </BarChart>
               </ResponsiveContainer>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 1 }}>
+                💡 Clique em uma barra para ver os detalhes das notas do período
+              </Typography>
             </Box>
 
             {/* Tabela de Faturamento */}
@@ -726,6 +855,117 @@ const RelatoriosPage: React.FC = () => {
           </CardContent>
         </TabPanel>
       </Card>
+
+      {/* Dialog de Drill-Down */}
+      <Dialog 
+        open={drillDownOpen} 
+        onClose={() => setDrillDownOpen(false)} 
+        maxWidth="md" 
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <ZoomIn color="primary" />
+            {drillDownData?.titulo || 'Detalhamento'}
+          </Box>
+          <IconButton onClick={() => setDrillDownOpen(false)} size="small">
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          {drillDownData && (
+            <>
+              <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={4}>
+                    <Typography variant="overline" color="text.secondary">
+                      Total de Notas
+                    </Typography>
+                    <Typography variant="h5" fontWeight={700}>
+                      {drillDownData.dados.length}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={4}>
+                    <Typography variant="overline" color="text.secondary">
+                      Valor Total
+                    </Typography>
+                    <Typography variant="h5" fontWeight={700}>
+                      {formatCurrency(drillDownData.dados.reduce((acc, n) => acc + n.valor, 0))}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={4}>
+                    <Typography variant="overline" color="text.secondary">
+                      Período
+                    </Typography>
+                    <Typography variant="h5" fontWeight={700}>
+                      {drillDownData.mes}/2025
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Box>
+
+              {drillDownData.dados.length > 0 ? (
+                <TableContainer component={Paper} variant="outlined">
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: 'grey.50' }}>
+                        <TableCell sx={{ fontWeight: 600 }}>Número</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Tomador</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 600 }}>Valor</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Data</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {drillDownData.dados.map((nota) => (
+                        <TableRow key={nota.numero} hover>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>
+                              #{nota.numero}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Business fontSize="small" color="action" />
+                              {nota.tomador}
+                            </Box>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2" fontWeight={600}>
+                              {formatCurrency(nota.valor)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>{nota.data}</TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={nota.status} 
+                              size="small"
+                              color={nota.status === 'emitida' ? 'success' : 'error'}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <ReceiptLong sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+                  <Typography color="text.secondary">
+                    Nenhuma nota encontrada para este período
+                  </Typography>
+                </Box>
+              )}
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDrillDownOpen(false)}>Fechar</Button>
+          <Button variant="contained" startIcon={<TableChart />}>
+            Exportar Detalhes
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

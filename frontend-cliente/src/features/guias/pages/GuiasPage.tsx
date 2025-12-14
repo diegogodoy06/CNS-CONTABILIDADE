@@ -53,7 +53,7 @@ import {
 import { format, parseISO, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Guia, GuiaStatus, TipoGuia } from '../../../types';
-import { MarcarPagaDialog, HistoricoPagamentosDialog } from '../components';
+import { MarcarPagaDialog, HistoricoPagamentosDialog, CalendarioGuiasDrawer } from '../components';
 
 // Mock data
 const mockGuias: Guia[] = [
@@ -162,6 +162,7 @@ const GuiasPage: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [marcarPagaDialogOpen, setMarcarPagaDialogOpen] = useState(false);
   const [historicoDialogOpen, setHistoricoDialogOpen] = useState(false);
+  const [calendarioDrawerOpen, setCalendarioDrawerOpen] = useState(false);
 
   const tabs = [
     { label: 'Todas', count: mockGuias.length },
@@ -256,7 +257,11 @@ const GuiasPage: React.FC = () => {
           >
             Histórico
           </Button>
-          <Button variant="outlined" startIcon={<CalendarToday />}>
+          <Button 
+            variant="outlined" 
+            startIcon={<CalendarToday />}
+            onClick={() => setCalendarioDrawerOpen(true)}
+          >
             Calendário
           </Button>
           <Button variant="outlined" startIcon={<FilterList />}>
@@ -652,6 +657,18 @@ const GuiasPage: React.FC = () => {
       <HistoricoPagamentosDialog
         open={historicoDialogOpen}
         onClose={() => setHistoricoDialogOpen(false)}
+      />
+
+      {/* Calendário de Guias Drawer */}
+      <CalendarioGuiasDrawer
+        open={calendarioDrawerOpen}
+        onClose={() => setCalendarioDrawerOpen(false)}
+        guias={mockGuias}
+        onGuiaClick={(guia) => {
+          setSelectedGuia(guia);
+          setCalendarioDrawerOpen(false);
+          // Aqui poderia abrir um dialog de detalhes ou focar na guia na tabela
+        }}
       />
     </Box>
   );

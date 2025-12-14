@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   Box,
   Drawer,
@@ -14,6 +14,7 @@ import {
   Chip,
   useTheme,
   alpha,
+  Paper,
 } from '@mui/material';
 import {
   Close,
@@ -37,6 +38,7 @@ import {
   resetWidgets,
   moveWidgetUp,
   moveWidgetDown,
+  reorderWidgets,
   type WidgetConfig,
 } from '../../../store/slices/widgetsSlice';
 
@@ -49,6 +51,10 @@ const WidgetConfigDrawer: React.FC<WidgetConfigDrawerProps> = ({ open, onClose }
   const theme = useTheme();
   const dispatch = useAppDispatch();
   const widgets = useAppSelector((state: RootState) => state.widgets.widgets);
+  
+  // Drag and Drop state
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const getWidgetIcon = (type: WidgetConfig['type']) => {
     switch (type) {
@@ -112,6 +118,45 @@ const WidgetConfigDrawer: React.FC<WidgetConfigDrawerProps> = ({ open, onClose }
     onClose();
   };
 
+  // Drag and Drop handlers
+  const handleDragStart = useCallback((e: React.DragEvent<HTMLLIElement>, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+    
+    // Create custom drag image
+    const element = e.currentTarget;
+    element.style.opacity = '0.5';
+  }, []);
+
+  const handleDragEnd = useCallback((e: React.DragEvent<HTMLLIElement>) => {
+    e.currentTarget.style.opacity = '1';
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLLIElement>, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverIndex(index);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverIndex(null);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent<HTMLLIElement>, dropIndex: number) => {
+    e.preventDefault();
+    const dragIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    
+    if (dragIndex !== dropIndex) {
+      dispatch(reorderWidgets({ dragIndex, hoverIndex: dropIndex }));
+    }
+    
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  }, [dispatch]);
+
   return (
     <Drawer
       anchor="right"
@@ -151,26 +196,60 @@ const WidgetConfigDrawer: React.FC<WidgetConfigDrawerProps> = ({ open, onClose }
 
       {/* Content */}
       <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-        <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>
-          Arraste os widgets para reordenar ou use as setas. Ative/desative para mostrar ou ocultar.
-        </Typography>
+        <Paper 
+          elevation={0}
+          sx={{ 
+            p: 2, 
+            mb: 2, 
+            bgcolor: alpha(theme.palette.primary.main, 0.04),
+            borderRadius: 2,
+          }}
+        >
+          <Typography variant="subtitle2" color="text.secondary">
+            ✨ <strong>Arraste</strong> os widgets para reordenar usando o ícone ≡ ou use as setas.
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            Ative/desative o switch para mostrar ou ocultar widgets no dashboard.
+          </Typography>
+        </Paper>
 
         <List disablePadding>
           {widgets.map((widget, index) => (
             <ListItem
               key={widget.id}
+              draggable
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragEnd={handleDragEnd}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, index)}
               sx={{
                 mb: 1,
                 borderRadius: 2,
                 bgcolor: 'background.paper',
-                border: '1px solid',
-                borderColor: widget.visible ? 'divider' : alpha(theme.palette.text.disabled, 0.1),
-                opacity: widget.visible ? 1 : 0.6,
+                border: '2px solid',
+                borderColor: dragOverIndex === index 
+                  ? 'primary.main' 
+                  : widget.visible 
+                    ? 'divider' 
+                    : alpha(theme.palette.text.disabled, 0.1),
+                opacity: draggedIndex === index ? 0.5 : widget.visible ? 1 : 0.6,
                 transition: 'all 0.2s',
+                cursor: 'grab',
+                transform: dragOverIndex === index ? 'scale(1.02)' : 'scale(1)',
+                '&:active': {
+                  cursor: 'grabbing',
+                },
               }}
             >
               <ListItemIcon sx={{ minWidth: 40 }}>
-                <DragIndicator sx={{ color: 'text.disabled', cursor: 'grab' }} />
+                <DragIndicator 
+                  sx={{ 
+                    color: draggedIndex === index ? 'primary.main' : 'text.disabled',
+                    cursor: 'grab',
+                    '&:hover': { color: 'primary.main' },
+                  }} 
+                />
               </ListItemIcon>
               
               <ListItemIcon sx={{ minWidth: 40 }}>

@@ -18,33 +18,22 @@ import {
   Divider,
   Avatar,
   Alert,
-  Chip,
   Paper,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
-  ListItemSecondaryAction,
   useTheme,
   alpha,
   InputAdornment,
 } from '@mui/material';
 import {
   Business,
-  Person,
-  Notifications,
-  Security,
-  Palette,
   CloudUpload,
   Save,
   Edit,
   PhotoCamera,
   AccountBalance,
-  Description,
-  CalendarMonth,
-  LightMode,
-  DarkMode,
-  Language,
   LocationOn,
   Phone,
   Email,
@@ -54,10 +43,10 @@ import {
   Key,
   Verified,
   Warning,
+  Person,
+  Description,
+  CalendarMonth,
 } from '@mui/icons-material';
-import { useDispatch, useSelector } from 'react-redux';
-import type { RootState } from '../../../store';
-import { toggleDarkMode } from '../../../store/slices/uiSlice';
 
 // Tipos
 interface TabPanelProps {
@@ -130,8 +119,6 @@ const mockCertificado = {
 
 const ConfiguracoesPage: React.FC = () => {
   const theme = useTheme();
-  const dispatch = useDispatch();
-  const darkMode = useSelector((state: RootState) => state.ui.darkMode);
   
   const [activeTab, setActiveTab] = useState(0);
   const [editMode, setEditMode] = useState(false);
@@ -140,23 +127,11 @@ const ConfiguracoesPage: React.FC = () => {
   // Estados dos formulários
   const [empresa, setEmpresa] = useState(mockEmpresa);
   const [configFiscais, setConfigFiscais] = useState(mockConfiguracoesFiscais);
-  const [preferencias, setPreferencias] = useState({
-    idioma: 'pt-BR',
-    formatoData: 'DD/MM/YYYY',
-    formatoMoeda: 'BRL',
-    notificacoesEmail: true,
-    notificacoesPush: true,
-    resumoDiario: false,
-  });
 
   const handleSave = () => {
     setShowSaveSuccess(true);
     setEditMode(false);
     setTimeout(() => setShowSaveSuccess(false), 3000);
-  };
-
-  const handleToggleDarkMode = () => {
-    dispatch(toggleDarkMode());
   };
 
   const calcularDiasParaVencimento = (dataVencimento: string) => {
@@ -178,7 +153,7 @@ const ConfiguracoesPage: React.FC = () => {
           Configurações
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Gerencie os dados da empresa, configurações fiscais e preferências do sistema.
+          Gerencie os dados da empresa, configurações fiscais e certificado digital.
         </Typography>
       </Box>
 
@@ -207,7 +182,6 @@ const ConfiguracoesPage: React.FC = () => {
           <Tab icon={<Business />} label="Dados da Empresa" iconPosition="start" />
           <Tab icon={<AccountBalance />} label="Configurações Fiscais" iconPosition="start" />
           <Tab icon={<Key />} label="Certificado Digital" iconPosition="start" />
-          <Tab icon={<Palette />} label="Preferências" iconPosition="start" />
         </Tabs>
       </Card>
 
@@ -906,222 +880,6 @@ const ConfiguracoesPage: React.FC = () => {
             </Card>
           </Grid>
         </Grid>
-      </TabPanel>
-
-      {/* Tab 3: Preferências */}
-      <TabPanel value={activeTab} index={3}>
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>
-                  Aparência
-                </Typography>
-
-                <List>
-                  <ListItem>
-                    <ListItemIcon>
-                      {darkMode ? <DarkMode /> : <LightMode />}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Tema Escuro"
-                      secondary="Ativar modo noturno para reduzir cansaço visual"
-                    />
-                    <ListItemSecondaryAction>
-                      <Switch edge="end" checked={darkMode} onChange={handleToggleDarkMode} />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                  <Divider component="li" />
-                  <ListItem>
-                    <ListItemIcon>
-                      <Language />
-                    </ListItemIcon>
-                    <ListItemText primary="Idioma" secondary="Idioma da interface" />
-                    <ListItemSecondaryAction>
-                      <FormControl size="small" sx={{ minWidth: 150 }}>
-                        <Select
-                          value={preferencias.idioma}
-                          onChange={(e) => setPreferencias({ ...preferencias, idioma: e.target.value })}
-                        >
-                          <MenuItem value="pt-BR">Português (BR)</MenuItem>
-                          <MenuItem value="en-US">English (US)</MenuItem>
-                          <MenuItem value="es">Español</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                </List>
-              </CardContent>
-            </Card>
-
-            <Card sx={{ mt: 3 }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>
-                  Formatos
-                </Typography>
-
-                <Grid container spacing={2}>
-                  <Grid item xs={12}>
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Formato de Data</InputLabel>
-                      <Select
-                        value={preferencias.formatoData}
-                        label="Formato de Data"
-                        onChange={(e) => setPreferencias({ ...preferencias, formatoData: e.target.value })}
-                      >
-                        <MenuItem value="DD/MM/YYYY">DD/MM/YYYY (31/12/2025)</MenuItem>
-                        <MenuItem value="MM/DD/YYYY">MM/DD/YYYY (12/31/2025)</MenuItem>
-                        <MenuItem value="YYYY-MM-DD">YYYY-MM-DD (2025-12-31)</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <FormControl fullWidth size="small">
-                      <InputLabel>Moeda</InputLabel>
-                      <Select
-                        value={preferencias.formatoMoeda}
-                        label="Moeda"
-                        onChange={(e) => setPreferencias({ ...preferencias, formatoMoeda: e.target.value })}
-                      >
-                        <MenuItem value="BRL">Real Brasileiro (R$)</MenuItem>
-                        <MenuItem value="USD">Dólar Americano (US$)</MenuItem>
-                        <MenuItem value="EUR">Euro (€)</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>
-                  <Notifications sx={{ mr: 1, verticalAlign: 'middle' }} />
-                  Notificações
-                </Typography>
-
-                <List>
-                  <ListItem>
-                    <ListItemIcon>
-                      <Email />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Notificações por E-mail"
-                      secondary="Receber alertas importantes por e-mail"
-                    />
-                    <ListItemSecondaryAction>
-                      <Switch
-                        edge="end"
-                        checked={preferencias.notificacoesEmail}
-                        onChange={(e) => setPreferencias({ 
-                          ...preferencias, 
-                          notificacoesEmail: e.target.checked 
-                        })}
-                      />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                  <Divider component="li" />
-                  <ListItem>
-                    <ListItemIcon>
-                      <Notifications />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Notificações Push"
-                      secondary="Receber notificações no navegador"
-                    />
-                    <ListItemSecondaryAction>
-                      <Switch
-                        edge="end"
-                        checked={preferencias.notificacoesPush}
-                        onChange={(e) => setPreferencias({ 
-                          ...preferencias, 
-                          notificacoesPush: e.target.checked 
-                        })}
-                      />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                  <Divider component="li" />
-                  <ListItem>
-                    <ListItemIcon>
-                      <CalendarMonth />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Resumo Diário"
-                      secondary="Receber resumo das atividades diariamente"
-                    />
-                    <ListItemSecondaryAction>
-                      <Switch
-                        edge="end"
-                        checked={preferencias.resumoDiario}
-                        onChange={(e) => setPreferencias({ 
-                          ...preferencias, 
-                          resumoDiario: e.target.checked 
-                        })}
-                      />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                </List>
-
-                <Button variant="text" color="primary" sx={{ mt: 2 }}>
-                  Configurações avançadas de notificações →
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card sx={{ mt: 3 }}>
-              <CardContent>
-                <Typography variant="h6" fontWeight={600} sx={{ mb: 3 }}>
-                  <Security sx={{ mr: 1, verticalAlign: 'middle' }} />
-                  Segurança
-                </Typography>
-
-                <List>
-                  <ListItem>
-                    <ListItemText
-                      primary="Alterar Senha"
-                      secondary="Última alteração: há 30 dias"
-                    />
-                    <ListItemSecondaryAction>
-                      <Button variant="outlined" size="small">
-                        Alterar
-                      </Button>
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                  <Divider component="li" />
-                  <ListItem>
-                    <ListItemText
-                      primary="Autenticação em 2 Fatores"
-                      secondary="Adicione uma camada extra de segurança"
-                    />
-                    <ListItemSecondaryAction>
-                      <Chip label="Desativado" size="small" color="default" />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                  <Divider component="li" />
-                  <ListItem>
-                    <ListItemText
-                      primary="Dispositivos Conectados"
-                      secondary="2 dispositivos ativos"
-                    />
-                    <ListItemSecondaryAction>
-                      <Button variant="outlined" size="small">
-                        Gerenciar
-                      </Button>
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                </List>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button variant="contained" startIcon={<Save />} onClick={handleSave}>
-            Salvar Preferências
-          </Button>
-        </Box>
       </TabPanel>
     </Box>
   );

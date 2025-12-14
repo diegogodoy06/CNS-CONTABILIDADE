@@ -1,5 +1,5 @@
-﻿import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+﻿import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -56,6 +56,11 @@ import {
   AccessTime,
   Description,
   FileDownload,
+  Business,
+  LocationOn,
+  Email,
+  Print,
+  Edit,
 } from '@mui/icons-material';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -205,6 +210,7 @@ const mockTomadores: Partial<Tomador>[] = [
 
 const NotasPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
@@ -213,6 +219,30 @@ const NotasPage: React.FC = () => {
   const [selectedNota, setSelectedNota] = useState<NotaFiscal | null>(null);
   const [emitirDialogOpen, setEmitirDialogOpen] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
+
+  // Sincronizar aba com query param
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'rascunhos') {
+      setActiveTab(2);
+    } else if (tabParam === 'emitidas') {
+      setActiveTab(1);
+    } else if (tabParam === 'canceladas') {
+      setActiveTab(3);
+    }
+  }, [searchParams]);
+
+  // Atualizar URL quando mudar a aba
+  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+    setPage(0);
+    const tabNames = ['', 'emitidas', 'rascunhos', 'canceladas'];
+    if (newValue === 0) {
+      setSearchParams({});
+    } else {
+      setSearchParams({ tab: tabNames[newValue] });
+    }
+  };
   const [cancelarDialogOpen, setCancelarDialogOpen] = useState(false);
   const [notaParaCancelar, setNotaParaCancelar] = useState<NotaFiscal | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
@@ -226,6 +256,8 @@ const NotasPage: React.FC = () => {
   const [filtros, setFiltros] = useState<FiltrosNotas>(filtrosIniciais);
   const [exportarDialogOpen, setExportarDialogOpen] = useState(false);
   const [notasSelecionadas, setNotasSelecionadas] = useState<string[]>([]);
+  const [visualizarDialogOpen, setVisualizarDialogOpen] = useState(false);
+  const [notaParaVisualizar, setNotaParaVisualizar] = useState<NotaFiscal | null>(null);
 
   const tabs = [
     { label: 'Todas', count: mockNotas.length },
@@ -255,6 +287,12 @@ const NotasPage: React.FC = () => {
 
   const handleMenuClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleVisualizarNota = (nota: NotaFiscal) => {
+    setNotaParaVisualizar(nota);
+    setVisualizarDialogOpen(true);
+    handleMenuClose();
   };
 
   const handleCancelarNota = () => {
@@ -425,7 +463,7 @@ const NotasPage: React.FC = () => {
         <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'grey.50' }}>
           <Tabs
             value={activeTab}
-            onChange={(_, v) => setActiveTab(v)}
+            onChange={handleTabChange}
           >
             {tabs.map((tab, index) => (
               <Tab
@@ -562,7 +600,7 @@ const NotasPage: React.FC = () => {
                       </TableCell>
                       <TableCell align="right">
                         <Tooltip title="Visualizar">
-                          <IconButton size="small">
+                          <IconButton size="small" onClick={() => handleVisualizarNota(nota)}>
                             <Visibility fontSize="small" />
                           </IconButton>
                         </Tooltip>
@@ -601,7 +639,7 @@ const NotasPage: React.FC = () => {
 
       {/* Context Menu */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-        <MenuItem onClick={handleMenuClose}>
+        <MenuItem onClick={() => selectedNota && handleVisualizarNota(selectedNota)}>
           <ListItemIcon><Visibility fontSize="small" /></ListItemIcon>
           Visualizar
         </MenuItem>
@@ -852,6 +890,279 @@ const NotasPage: React.FC = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Dialog de Visualização de Nota */}
+      <Dialog
+        open={visualizarDialogOpen}
+        onClose={() => setVisualizarDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Receipt color="primary" />
+              <Box>
+                <Typography variant="h6" component="span">
+                  {notaParaVisualizar?.numero 
+                    ? `Nota Fiscal #${notaParaVisualizar.numero}` 
+                    : 'Rascunho de Nota Fiscal'}
+                </Typography>
+                {notaParaVisualizar && (
+                  <Chip
+                    label={statusConfig[notaParaVisualizar.status].label}
+                    color={statusConfig[notaParaVisualizar.status].color}
+                    size="small"
+                    sx={{ ml: 1 }}
+                  />
+                )}
+              </Box>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {notaParaVisualizar?.status === 'emitida' && (
+                <>
+                  <Tooltip title="Download PDF">
+                    <IconButton size="small">
+                      <Download />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Imprimir">
+                    <IconButton size="small">
+                      <Print />
+                    </IconButton>
+                  </Tooltip>
+                </>
+              )}
+              <IconButton onClick={() => setVisualizarDialogOpen(false)} size="small">
+                <Close />
+              </IconButton>
+            </Box>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          {notaParaVisualizar && (
+            <Grid container spacing={3}>
+              {/* Informações Gerais */}
+              <Grid item xs={12}>
+                <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6} md={3}>
+                      <Typography variant="caption" color="text.secondary">
+                        Número / Série
+                      </Typography>
+                      <Typography variant="body1" fontWeight={600}>
+                        {notaParaVisualizar.numero ? `${notaParaVisualizar.numero} / ${notaParaVisualizar.serie}` : '-'}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6} md={3}>
+                      <Typography variant="caption" color="text.secondary">
+                        Data de Emissão
+                      </Typography>
+                      <Typography variant="body1" fontWeight={600}>
+                        {notaParaVisualizar.dataEmissao 
+                          ? format(parseISO(notaParaVisualizar.dataEmissao), "dd/MM/yyyy", { locale: ptBR })
+                          : '-'}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6} md={3}>
+                      <Typography variant="caption" color="text.secondary">
+                        Competência
+                      </Typography>
+                      <Typography variant="body1" fontWeight={600}>
+                        {notaParaVisualizar.dataCompetencia}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6} md={3}>
+                      <Typography variant="caption" color="text.secondary">
+                        Código de Verificação
+                      </Typography>
+                      <Typography variant="body1" fontWeight={600} sx={{ fontFamily: 'monospace' }}>
+                        {notaParaVisualizar.codigoVerificacao || '-'}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Paper>
+              </Grid>
+
+              {/* Tomador */}
+              <Grid item xs={12} md={6}>
+                <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Business color="primary" />
+                    <Typography variant="subtitle1" fontWeight={600}>
+                      Tomador do Serviço
+                    </Typography>
+                  </Box>
+                  <Typography variant="body1" fontWeight={600}>
+                    {notaParaVisualizar.tomador.razaoSocial || notaParaVisualizar.tomador.nome}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    {notaParaVisualizar.tomador.tipo === 'pj' ? 'CNPJ' : 'CPF'}: {notaParaVisualizar.tomador.documento}
+                  </Typography>
+                  <Divider sx={{ my: 1 }} />
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mt: 1 }}>
+                    <LocationOn fontSize="small" color="action" />
+                    <Typography variant="body2">
+                      {notaParaVisualizar.tomador.endereco?.logradouro}, {notaParaVisualizar.tomador.endereco?.numero}
+                      <br />
+                      {notaParaVisualizar.tomador.endereco?.bairro} - {notaParaVisualizar.tomador.endereco?.cidade}/{notaParaVisualizar.tomador.endereco?.uf}
+                      <br />
+                      CEP: {notaParaVisualizar.tomador.endereco?.cep}
+                    </Typography>
+                  </Box>
+                  {notaParaVisualizar.tomador.email && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                      <Email fontSize="small" color="action" />
+                      <Typography variant="body2">
+                        {notaParaVisualizar.tomador.email}
+                      </Typography>
+                    </Box>
+                  )}
+                </Paper>
+              </Grid>
+
+              {/* Serviço */}
+              <Grid item xs={12} md={6}>
+                <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Description color="primary" />
+                    <Typography variant="subtitle1" fontWeight={600}>
+                      Serviço Prestado
+                    </Typography>
+                  </Box>
+                  <Typography variant="body1" fontWeight={600} gutterBottom>
+                    {notaParaVisualizar.servico.descricao}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mt: 1 }}>
+                    <Chip label={`CNAE: ${notaParaVisualizar.servico.cnae}`} size="small" variant="outlined" />
+                    {notaParaVisualizar.servico.codigoTributacaoMunicipal && (
+                      <Chip label={`Código Municipal: ${notaParaVisualizar.servico.codigoTributacaoMunicipal}`} size="small" variant="outlined" />
+                    )}
+                  </Box>
+                  <Divider sx={{ my: 2 }} />
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                    <LocationOn fontSize="small" color="action" />
+                    <Typography variant="body2">
+                      <strong>Local de Prestação:</strong> {notaParaVisualizar.localPrestacao?.municipio}/{notaParaVisualizar.localPrestacao?.uf}
+                    </Typography>
+                  </Box>
+                </Paper>
+              </Grid>
+
+              {/* Valores */}
+              <Grid item xs={12}>
+                <Paper variant="outlined" sx={{ p: 2 }}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
+                    Valores e Tributos
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={6} sm={4} md={2}>
+                      <Typography variant="caption" color="text.secondary">
+                        Valor do Serviço
+                      </Typography>
+                      <Typography variant="h6" fontWeight={700} color="primary">
+                        {formatCurrency(notaParaVisualizar.valores.valorServico)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6} sm={4} md={2}>
+                      <Typography variant="caption" color="text.secondary">
+                        Base de Cálculo
+                      </Typography>
+                      <Typography variant="h6" fontWeight={700}>
+                        {formatCurrency(notaParaVisualizar.valores.baseCalculo)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6} sm={4} md={2}>
+                      <Typography variant="caption" color="text.secondary">
+                        ISS ({notaParaVisualizar.tributos.iss.aliquota}%)
+                      </Typography>
+                      <Typography variant="h6" fontWeight={700} color="warning.main">
+                        {formatCurrency(notaParaVisualizar.tributos.iss.valor)}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6} sm={4} md={2}>
+                      <Typography variant="caption" color="text.secondary">
+                        ISS Retido
+                      </Typography>
+                      <Typography variant="h6" fontWeight={700}>
+                        {notaParaVisualizar.tributos.iss.retido ? 'Sim' : 'Não'}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6} sm={4} md={2}>
+                      <Typography variant="caption" color="text.secondary">
+                        Valor Líquido
+                      </Typography>
+                      <Typography variant="h6" fontWeight={700} color="success.main">
+                        {formatCurrency(notaParaVisualizar.valores.valorLiquido)}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Paper>
+              </Grid>
+
+              {/* Protocolo - apenas para notas emitidas */}
+              {notaParaVisualizar.status === 'emitida' && notaParaVisualizar.protocoloPrefeitura && (
+                <Grid item xs={12}>
+                  <Alert severity="success" icon={<CheckCircle />}>
+                    <Typography variant="body2">
+                      <strong>Protocolo da Prefeitura:</strong> {notaParaVisualizar.protocoloPrefeitura}
+                    </Typography>
+                    {notaParaVisualizar.codigoVerificacao && (
+                      <Typography variant="body2">
+                        <strong>Código de Verificação:</strong> {notaParaVisualizar.codigoVerificacao}
+                      </Typography>
+                    )}
+                  </Alert>
+                </Grid>
+              )}
+
+              {/* Rascunho - alerta para completar */}
+              {notaParaVisualizar.status === 'rascunho' && (
+                <Grid item xs={12}>
+                  <Alert severity="warning">
+                    <Typography variant="body2">
+                      Este é um <strong>rascunho</strong>. Clique em "Continuar Edição" para completar e emitir a nota fiscal.
+                    </Typography>
+                  </Alert>
+                </Grid>
+              )}
+            </Grid>
+          )}
+        </DialogContent>
+        <Divider />
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 2 }}>
+          <Button onClick={() => setVisualizarDialogOpen(false)}>
+            Fechar
+          </Button>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {notaParaVisualizar?.status === 'rascunho' && (
+              <Button 
+                variant="contained" 
+                startIcon={<Edit />}
+                onClick={() => {
+                  navigate(`/notas/emitir?rascunho=${notaParaVisualizar.id}`);
+                  setVisualizarDialogOpen(false);
+                }}
+              >
+                Continuar Edição
+              </Button>
+            )}
+            {notaParaVisualizar?.status === 'emitida' && (
+              <>
+                <Button variant="outlined" startIcon={<ContentCopy />}>
+                  Duplicar
+                </Button>
+                <Button variant="outlined" startIcon={<Send />}>
+                  Enviar por E-mail
+                </Button>
+                <Button variant="contained" startIcon={<Download />}>
+                  Download PDF
+                </Button>
+              </>
+            )}
+          </Box>
+        </Box>
+      </Dialog>
     </Box>
   );
 };
