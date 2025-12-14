@@ -361,6 +361,396 @@
 
 ---
 
+## 📋 ROADMAP DETALHADO - PORTAL ADMINISTRATIVO
+
+### 🎯 Visão Geral
+
+O Portal Administrativo é a interface do escritório de contabilidade para gerenciar todos os clientes, monitorar obrigações fiscais, comunicar-se em massa e configurar o sistema. 
+
+**URL de Produção:** `admin.cnscontabil.com.br`  
+**Porta de Desenvolvimento:** `5174`
+
+---
+
+### 📊 FASE 1: Estrutura Base (✅ CONCLUÍDA)
+
+**Duração:** 1 semana  
+**Status:** ✅ Implementado
+
+| Funcionalidade | Status | Descrição |
+|----------------|--------|-----------|
+| Estrutura Vite + React + TS | ✅ | Projeto configurado com TypeScript strict |
+| Material-UI v6 | ✅ | Tema profissional azul escuro (#1e3a5f) |
+| Redux Toolkit | ✅ | Slices: auth, ui, clientes, monitoramento |
+| React Router | ✅ | Rotas com lazy loading |
+| Layout Responsivo | ✅ | Sidebar retrátil + Header com busca |
+
+---
+
+### 📈 FASE 2: Dashboard do Contador (✅ CONCLUÍDA)
+
+**Duração:** 1 semana  
+**Status:** ✅ Implementado
+
+#### RF-ADM-DASH: Painel Principal
+
+| Componente | Status | Descrição |
+|------------|--------|-----------|
+| Cards de Métricas | ✅ | Clientes ativos, Faturamento, Guias, Tickets |
+| Gráfico Faturamento | ✅ | AreaChart semanal com valores |
+| Gráfico Regime Tributário | ✅ | PieChart (Simples, Presumido, Real) |
+| Lista de Alertas | ✅ | Top 5 alertas críticos |
+| Atividades Recentes | ✅ | Timeline de ações dos clientes |
+| Clientes com Pendências | ✅ | Tabela resumida |
+
+**Próximas Melhorias:**
+- [ ] Filtro por período (7d, 30d, 90d, 12m)
+- [ ] Exportar métricas para PDF
+- [ ] Comparativo mês anterior
+- [ ] Meta de faturamento
+
+---
+
+### 👥 FASE 3: Gestão de Clientes (✅ CONCLUÍDA)
+
+**Duração:** 2 semanas  
+**Status:** ✅ Parcialmente implementado
+
+#### RF-ADM-CLI-001: Listagem de Clientes
+
+| Funcionalidade | Status | Descrição |
+|----------------|--------|-----------|
+| Tabela com busca | ✅ | Busca por nome, CNPJ, responsável |
+| Filtros por status | ✅ | Ativo, Inadimplente, Bloqueado |
+| Abas por regime | ✅ | Simples Nacional, Lucro Presumido, Lucro Real |
+| Paginação | ✅ | 10, 25, 50 itens por página |
+| Menu de contexto | ✅ | Visualizar, Editar, Bloquear |
+
+#### RF-ADM-CLI-002: Detalhes do Cliente
+
+| Funcionalidade | Status | Descrição |
+|----------------|--------|-----------|
+| Dialog informativo | ✅ | Dados cadastrais, contatos |
+| Métricas do cliente | ✅ | Notas emitidas, guias, tickets |
+| Histórico resumido | ✅ | Últimas atividades |
+| Ações rápidas | ✅ | Bloquear, enviar mensagem |
+
+#### RF-ADM-CLI-003: Cadastro de Cliente (🔄 PENDENTE)
+
+| Funcionalidade | Status | Prioridade |
+|----------------|--------|------------|
+| Wizard de cadastro | ❌ | Alta |
+| Dados da empresa | ❌ | Alta |
+| Dados do responsável | ❌ | Alta |
+| Configuração fiscal | ❌ | Alta |
+| Documentos iniciais | ❌ | Média |
+| Certificado digital | ❌ | Alta |
+
+**Campos do Cadastro:**
+```
+Etapa 1 - Dados Básicos:
+- CNPJ (com consulta Receita Federal)
+- Razão Social / Nome Fantasia
+- Inscrição Estadual / Municipal
+- Data de abertura
+- CNAE Principal / Secundários
+
+Etapa 2 - Endereço:
+- CEP (autocomplete ViaCEP)
+- Logradouro, Número, Complemento
+- Bairro, Cidade, UF
+
+Etapa 3 - Responsável:
+- Nome completo
+- CPF
+- Email / Telefone
+- Cargo
+
+Etapa 4 - Configuração Fiscal:
+- Regime Tributário
+- Alíquota ISS padrão
+- Município de prestação
+- Retenções padrão
+
+Etapa 5 - Acesso:
+- Criar usuário administrador
+- Definir senha inicial
+- Enviar email de boas-vindas
+```
+
+---
+
+### 🚨 FASE 4: Monitoramento e Alertas (✅ CONCLUÍDA)
+
+**Duração:** 1 semana  
+**Status:** ✅ Implementado
+
+#### RF-ADM-MON-001: Central de Alertas
+
+| Funcionalidade | Status | Descrição |
+|----------------|--------|-----------|
+| Abas por prioridade | ✅ | Crítico, Importante, Informativo |
+| Filtro por categoria | ✅ | Guia, Sistema, Documento, Ticket |
+| Seleção em lote | ✅ | Marcar múltiplos como lido/resolvido |
+| Badge no menu | ✅ | Contador de não lidos |
+
+#### RF-ADM-MON-002: Tipos de Alertas
+
+| Tipo | Cor | Exemplos |
+|------|-----|----------|
+| Crítico | 🔴 Vermelho | Guia vencida, Certificado expirado |
+| Importante | 🟡 Amarelo | Guia vencendo em 3 dias, Ticket sem resposta |
+| Informativo | 🔵 Azul | Documento enviado, Nota emitida |
+
+#### RF-ADM-MON-003: Log de Atividades (🔄 PENDENTE)
+
+| Funcionalidade | Status | Prioridade |
+|----------------|--------|------------|
+| Timeline global | ❌ | Média |
+| Filtro por cliente | ❌ | Média |
+| Filtro por tipo | ❌ | Média |
+| Exportar log | ❌ | Baixa |
+
+---
+
+### 📢 FASE 5: Comunicação (✅ CONCLUÍDA)
+
+**Duração:** 1 semana  
+**Status:** ✅ Implementado
+
+#### RF-ADM-COM-001: Comunicados em Massa
+
+| Funcionalidade | Status | Descrição |
+|----------------|--------|-----------|
+| Wizard 3 etapas | ✅ | Conteúdo → Destinatários → Revisão |
+| Tipos de mensagem | ✅ | Urgente, Informativo, Lembrete |
+| Segmentação | ✅ | Todos, Regime, Inadimplentes, Tags |
+| Agendamento | ✅ | Data/hora futura |
+| Templates | ✅ | Salvar e reutilizar |
+| Estatísticas | ✅ | Taxa de leitura |
+
+#### RF-ADM-COM-002: Mensagens Individuais (🔄 PENDENTE)
+
+| Funcionalidade | Status | Prioridade |
+|----------------|--------|------------|
+| Chat com cliente | ❌ | Alta |
+| Histórico de conversas | ❌ | Alta |
+| Anexo de arquivos | ❌ | Média |
+| Notificação push | ❌ | Média |
+
+---
+
+### ⚙️ FASE 6: Configurações (🔴 NÃO INICIADA)
+
+**Duração:** 2 semanas  
+**Status:** 🔴 Pendente
+
+#### RF-ADM-CFG-001: Configurações do Escritório
+
+| Funcionalidade | Status | Prioridade |
+|----------------|--------|------------|
+| Dados do escritório | ❌ | Alta |
+| Logo e identidade visual | ❌ | Média |
+| Horário de funcionamento | ❌ | Baixa |
+| Certificado digital do escritório | ❌ | Alta |
+
+#### RF-ADM-CFG-002: Gestão de Usuários Internos
+
+| Funcionalidade | Status | Prioridade |
+|----------------|--------|------------|
+| Listagem de colaboradores | ❌ | Alta |
+| Perfis de acesso | ❌ | Alta |
+| Convite por email | ❌ | Alta |
+| Permissões granulares | ❌ | Média |
+
+**Perfis Sugeridos:**
+```
+👑 Administrador: Acesso total
+📊 Contador: Clientes, Notas, Guias, Relatórios
+📝 Assistente: Visualização, Documentos, Tickets
+👀 Visualizador: Apenas leitura
+```
+
+#### RF-ADM-CFG-003: Configuração de Serviços
+
+| Funcionalidade | Status | Prioridade |
+|----------------|--------|------------|
+| Módulos ativos | ❌ | Média |
+| Limites por plano | ❌ | Média |
+| SLA de atendimento | ❌ | Baixa |
+| White-label | ❌ | Baixa |
+
+#### RF-ADM-CFG-004: Integrações
+
+| Funcionalidade | Status | Prioridade |
+|----------------|--------|------------|
+| Webhooks | ❌ | Baixa |
+| API de terceiros | ❌ | Baixa |
+| Importação CSV | ❌ | Média |
+| Exportação em lote | ❌ | Média |
+
+---
+
+### 📊 FASE 7: Relatórios Gerenciais (🔴 NÃO INICIADA)
+
+**Duração:** 2 semanas  
+**Status:** 🔴 Pendente
+
+#### RF-ADM-REL-001: Relatórios do Escritório
+
+| Relatório | Status | Descrição |
+|-----------|--------|-----------|
+| Faturamento por cliente | ❌ | Mensal/Anual por empresa |
+| Notas emitidas | ❌ | Volume por período |
+| Guias processadas | ❌ | Por tipo de imposto |
+| Tickets atendidos | ❌ | Tempo médio de resposta |
+| Performance da equipe | ❌ | Ações por colaborador |
+
+#### RF-ADM-REL-002: Dashboards Analíticos
+
+| Dashboard | Status | Descrição |
+|-----------|--------|-----------|
+| Visão executiva | ❌ | KPIs principais |
+| Comparativo | ❌ | Mês a mês / Ano a ano |
+| Previsões | ❌ | Projeção de faturamento |
+| Inadimplência | ❌ | Análise de risco |
+
+---
+
+### 🔌 FASE 8: Operações em Lote (🔴 NÃO INICIADA)
+
+**Duração:** 1 semana  
+**Status:** 🔴 Pendente
+
+#### RF-ADM-LOTE-001: Ações em Massa
+
+| Funcionalidade | Status | Prioridade |
+|----------------|--------|------------|
+| Envio de guias em lote | ❌ | Alta |
+| Geração de relatórios múltiplos | ❌ | Média |
+| Atualização cadastral em massa | ❌ | Baixa |
+| Bloqueio/Desbloqueio múltiplo | ❌ | Média |
+
+#### RF-ADM-LOTE-002: Importação/Exportação
+
+| Funcionalidade | Status | Prioridade |
+|----------------|--------|------------|
+| Importar clientes CSV | ❌ | Média |
+| Exportar base completa | ❌ | Média |
+| Backup de documentos | ❌ | Alta |
+| Migração de dados | ❌ | Baixa |
+
+---
+
+### 📅 CRONOGRAMA DE IMPLEMENTAÇÃO
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ SPRINT 6 (Semana 1-2)                                           │
+├─────────────────────────────────────────────────────────────────┤
+│ ▸ Cadastro completo de clientes (Wizard 5 etapas)               │
+│ ▸ Chat individual com cliente                                    │
+│ ▸ Log de atividades global                                       │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ SPRINT 7 (Semana 3-4)                                           │
+├─────────────────────────────────────────────────────────────────┤
+│ ▸ Configurações do escritório                                    │
+│ ▸ Gestão de usuários internos                                    │
+│ ▸ Perfis e permissões                                            │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ SPRINT 8 (Semana 5-6)                                           │
+├─────────────────────────────────────────────────────────────────┤
+│ ▸ Relatórios gerenciais                                          │
+│ ▸ Dashboards analíticos                                          │
+│ ▸ Exportação de dados                                            │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│ SPRINT 9 (Semana 7-8)                                           │
+├─────────────────────────────────────────────────────────────────┤
+│ ▸ Operações em lote                                              │
+│ ▸ Integrações                                                    │
+│ ▸ White-label                                                    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 🎯 PRIORIDADES IMEDIATAS
+
+**Alta Prioridade (Próximas 2 semanas):**
+1. 🏢 Wizard de cadastro de cliente completo
+2. 💬 Sistema de chat individual
+3. 📋 Log de atividades
+4. 👥 Gestão de usuários internos
+
+**Média Prioridade (Próximo mês):**
+1. 📊 Relatórios gerenciais
+2. ⚙️ Configurações do escritório
+3. 📤 Envio de guias em lote
+4. 📥 Importação/Exportação CSV
+
+**Baixa Prioridade (Futuro):**
+1. 🎨 White-label
+2. 🔌 Webhooks e API
+3. 📈 Previsões e análises avançadas
+
+---
+
+### 📁 ESTRUTURA DE ARQUIVOS DO ADMIN
+
+```
+frontend-admin/
+├── src/
+│   ├── components/
+│   │   ├── layout/
+│   │   │   ├── Sidebar.tsx       ✅
+│   │   │   ├── Header.tsx        ✅
+│   │   │   └── MainLayout.tsx    ✅
+│   │   └── shared/
+│   │       ├── DataTable.tsx     ❌ (criar)
+│   │       ├── WizardStepper.tsx ❌ (criar)
+│   │       └── Charts.tsx        ❌ (criar)
+│   ├── features/
+│   │   ├── dashboard/
+│   │   │   └── pages/DashboardPage.tsx    ✅
+│   │   ├── clientes/
+│   │   │   ├── pages/ClientesPage.tsx     ✅
+│   │   │   ├── pages/NovoClientePage.tsx  ❌ (criar)
+│   │   │   └── pages/ClienteDetalhesPage.tsx ❌ (criar)
+│   │   ├── monitoramento/
+│   │   │   ├── pages/AlertasPage.tsx      ✅
+│   │   │   └── pages/AtividadesPage.tsx   ❌ (criar)
+│   │   ├── comunicacao/
+│   │   │   ├── pages/ComunicadosPage.tsx  ✅
+│   │   │   └── pages/MensagensPage.tsx    ❌ (criar)
+│   │   ├── relatorios/
+│   │   │   ├── pages/RelatoriosPage.tsx   ❌ (criar)
+│   │   │   └── pages/DashboardAnalitico.tsx ❌ (criar)
+│   │   └── configuracoes/
+│   │       ├── pages/ConfiguracoesPage.tsx ❌ (criar)
+│   │       ├── pages/UsuariosPage.tsx      ❌ (criar)
+│   │       └── pages/InttegracoesPage.tsx  ❌ (criar)
+│   ├── store/
+│   │   └── slices/
+│   │       ├── authSlice.ts           ✅
+│   │       ├── uiSlice.ts             ✅
+│   │       ├── clientesSlice.ts       ✅
+│   │       ├── monitoramentoSlice.ts  ✅
+│   │       ├── comunicacaoSlice.ts    ❌ (criar)
+│   │       └── relatoriosSlice.ts     ❌ (criar)
+│   └── services/
+│       ├── api.ts                     ❌ (criar)
+│       ├── clientesService.ts         ❌ (criar)
+│       └── relatoriosService.ts       ❌ (criar)
+```
+
+---
+
 ## 🔧 BACKEND (A ser desenvolvido)
 
 ### API REST - Node.js + Express
