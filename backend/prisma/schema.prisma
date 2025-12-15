@@ -420,6 +420,12 @@ model Usuario {
   ultimoLogin       DateTime?         @map("ultimo_login")
   tentativasLogin   Int               @default(0) @map("tentativas_login")
   bloqueadoAte      DateTime?         @map("bloqueado_ate")
+  
+  // Campos para 2FA (Two-Factor Authentication)
+  mfaSecret         String?           @map("mfa_secret")
+  mfaHabilitado     Boolean           @default(false) @map("mfa_habilitado")
+  mfaAtivadoEm      DateTime?         @map("mfa_ativado_em")
+  
   criadoEm          DateTime          @default(now()) @map("criado_em")
   atualizadoEm      DateTime          @updatedAt @map("atualizado_em")
   

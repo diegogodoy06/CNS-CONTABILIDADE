@@ -6,6 +6,8 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
+import { TwoFactorService } from './two-factor.service';
+import { TwoFactorController } from './two-factor.controller';
 
 @Module({
   imports: [
@@ -21,8 +23,8 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
       inject: [ConfigService],
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtRefreshStrategy],
-  exports: [AuthService, JwtModule],
+  controllers: [AuthController, TwoFactorController],
+  providers: [AuthService, JwtStrategy, JwtRefreshStrategy, TwoFactorService],
+  exports: [AuthService, JwtModule, TwoFactorService],
 })
 export class AuthModule {}

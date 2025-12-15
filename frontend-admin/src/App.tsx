@@ -8,6 +8,12 @@ const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPag
 const ClientesPage = lazy(() => import('./features/clientes/pages/ClientesPage'));
 const AlertasPage = lazy(() => import('./features/monitoramento/pages/AlertasPage'));
 const ComunicadosPage = lazy(() => import('./features/comunicacao/pages/ComunicadosPage'));
+const UsuariosPage = lazy(() => import('./features/usuarios/pages/UsuariosPage'));
+const TicketsPage = lazy(() => import('./features/tickets/pages/TicketsPage'));
+const NotasFiscaisPage = lazy(() => import('./features/notas-fiscais/pages/NotasFiscaisPage'));
+const DocumentosGuiasPage = lazy(() => import('./features/documentos/pages/DocumentosGuiasPage'));
+const RelatoriosPage = lazy(() => import('./features/relatorios/pages/RelatoriosPage'));
+const EquipePage = lazy(() => import('./features/equipe/pages/EquipePage'));
 
 // Loading fallback
 const LoadingFallback = () => (
@@ -47,22 +53,27 @@ function App() {
           {/* Clientes */}
           <Route path="clientes" element={<ClientesPage />} />
           
+          {/* Gestão de Usuários Global */}
+          <Route path="usuarios" element={<UsuariosPage />} />
+          
           {/* Monitoramento */}
           <Route path="alertas" element={<AlertasPage />} />
-          <Route path="guias-vencendo" element={<PlaceholderPage title="Guias Vencendo" />} />
-          <Route path="tickets" element={<PlaceholderPage title="Tickets" />} />
+          <Route path="guias-vencendo" element={<DocumentosGuiasPage />} />
+          <Route path="tickets" element={<TicketsPage />} />
           
           {/* Notas e Documentos */}
-          <Route path="notas" element={<PlaceholderPage title="Notas Fiscais" />} />
-          <Route path="documentos" element={<PlaceholderPage title="Documentos" />} />
+          <Route path="notas" element={<NotasFiscaisPage />} />
+          <Route path="documentos" element={<DocumentosGuiasPage />} />
           
           {/* Comunicação */}
           <Route path="comunicados" element={<ComunicadosPage />} />
           <Route path="mensagens" element={<PlaceholderPage title="Mensagens" />} />
           
-          {/* Outros */}
-          <Route path="relatorios" element={<PlaceholderPage title="Relatórios" />} />
-          <Route path="equipe" element={<PlaceholderPage title="Equipe" />} />
+          {/* Relatórios */}
+          <Route path="relatorios" element={<RelatoriosPage />} />
+          
+          {/* Configurações */}
+          <Route path="equipe" element={<EquipePage />} />
           <Route path="configuracoes" element={<PlaceholderPage title="Configurações" />} />
           
           {/* Fallback */}

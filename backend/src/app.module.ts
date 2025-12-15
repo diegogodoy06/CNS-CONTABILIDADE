@@ -16,6 +16,13 @@ import { LocalidadesModule } from './modules/localidades/localidades.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { NotificacoesModule } from './modules/notificacoes/notificacoes.module';
 
+// Novos módulos
+import { TicketsModule } from './modules/tickets/tickets.module';
+import { ComunicacaoModule } from './modules/comunicacao/comunicacao.module';
+import { AuditoriaModule } from './modules/auditoria/auditoria.module';
+import { RelatoriosModule } from './modules/relatorios/relatorios.module';
+import { ConfiguracoesModule } from './modules/configuracoes/configuracoes.module';
+
 // Configuração de validação
 import { validateEnv } from './config/env.validation';
 
@@ -61,6 +68,13 @@ import { validateEnv } from './config/env.validation';
     LocalidadesModule,
     DashboardModule,
     NotificacoesModule,
+
+    // Novos módulos
+    TicketsModule,
+    ComunicacaoModule,
+    AuditoriaModule,
+    RelatoriosModule,
+    ConfiguracoesModule,
   ],
   providers: [
     // Guard global de rate limiting

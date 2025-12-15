@@ -1,8 +1,11 @@
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { TipoUsuario } from '@prisma/client';
 import { ROLES_KEY } from '../../../common/decorators/roles.decorator';
+import { TipoUsuario } from '@prisma/client';
 
+/**
+ * Guard que verifica se o usuário tem o tipo/role necessário para acessar a rota
+ */
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
@@ -21,14 +24,24 @@ export class RolesGuard implements CanActivate {
     const { user } = context.switchToHttp().getRequest();
 
     if (!user) {
-      return false;
+      throw new ForbiddenException('Usuário não autenticado');
     }
 
+    const tipoUsuario = user.tipo;
+
     // ADMIN_SISTEMA tem acesso a tudo
-    if (user.tipo === TipoUsuario.ADMIN_SISTEMA) {
+    if (tipoUsuario === TipoUsuario.ADMIN_SISTEMA) {
       return true;
     }
 
-    return requiredRoles.includes(user.tipo);
+    const hasRole = requiredRoles.some(role => role === tipoUsuario);
+    
+    if (!hasRole) {
+      throw new ForbiddenException(
+        `Acesso negado. Seu perfil (${tipoUsuario}) não tem permissão para acessar este recurso.`
+      );
+    }
+
+    return true;
   }
 }
