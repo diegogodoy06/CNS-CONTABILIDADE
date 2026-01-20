@@ -8,84 +8,9 @@ interface NotificationsState {
   error: string | null;
 }
 
-// Data de hoje e datas anteriores para mock
-const today = new Date();
-const yesterday = new Date(today);
-yesterday.setDate(yesterday.getDate() - 1);
-const twoDaysAgo = new Date(today);
-twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-const threeDaysAgo = new Date(today);
-threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-
-// Notificações de exemplo para demonstração
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    tipo: 'critica',
-    titulo: 'Guia DAS vencendo hoje!',
-    mensagem: 'A guia DAS de competência 04/2025 vence hoje. Valor: R$ 1.250,00',
-    dataEnvio: today.toISOString(),
-    lida: false,
-    link: '/guias',
-  },
-  {
-    id: '2',
-    tipo: 'importante',
-    titulo: 'Novo documento disponível',
-    mensagem: 'Seu contador enviou um novo balancete referente a março/2025.',
-    dataEnvio: today.toISOString(),
-    lida: false,
-    link: '/documentos',
-  },
-  {
-    id: '3',
-    tipo: 'informativa',
-    titulo: 'Nota fiscal emitida com sucesso',
-    mensagem: 'NF-e nº 1234 foi autorizada pela SEFAZ. Tomador: ABC Ltda.',
-    dataEnvio: today.toISOString(),
-    lida: false,
-    link: '/notas',
-  },
-  {
-    id: '4',
-    tipo: 'importante',
-    titulo: 'Guia INSS próxima do vencimento',
-    mensagem: 'A guia INSS vence em 3 dias. Valor: R$ 2.150,00',
-    dataEnvio: yesterday.toISOString(),
-    lida: false,
-    link: '/guias',
-  },
-  {
-    id: '5',
-    tipo: 'informativa',
-    titulo: 'Atualização de cadastro',
-    mensagem: 'Seus dados cadastrais foram atualizados pelo escritório contábil.',
-    dataEnvio: yesterday.toISOString(),
-    lida: true,
-    link: '/perfil',
-  },
-  {
-    id: '6',
-    tipo: 'critica',
-    titulo: 'Guia FGTS vencida',
-    mensagem: 'A guia FGTS de competência 03/2025 venceu há 5 dias. Regularize para evitar multas.',
-    dataEnvio: twoDaysAgo.toISOString(),
-    lida: true,
-    link: '/guias',
-  },
-  {
-    id: '7',
-    tipo: 'informativa',
-    titulo: 'Comunicado do contador',
-    mensagem: 'Lembramos que o prazo para entrega da documentação mensal é até o dia 10.',
-    dataEnvio: threeDaysAgo.toISOString(),
-    lida: true,
-  },
-];
-
 const initialState: NotificationsState = {
-  notifications: mockNotifications,
-  unreadCount: mockNotifications.filter((n) => !n.lida).length,
+  notifications: [],
+  unreadCount: 0,
   isLoading: false,
   error: null,
 };

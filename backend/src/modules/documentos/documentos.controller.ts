@@ -124,6 +124,17 @@ export class DocumentosController {
     return this.documentosService.download(id, user);
   }
 
+  @Get(':id/historico')
+  @ApiOperation({ summary: 'Histórico de acessos do documento' })
+  @ApiResponse({ status: 200, description: 'Lista de acessos do documento' })
+  @ApiResponse({ status: 404, description: 'Documento não encontrado' })
+  getHistorico(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: Usuario,
+  ) {
+    return this.documentosService.getHistorico(id, user);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Remover documento (soft delete)' })
   @ApiResponse({ status: 200, description: 'Documento removido' })

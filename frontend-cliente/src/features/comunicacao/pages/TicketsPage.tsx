@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -35,6 +35,7 @@ import {
   ListItem,
   ListItemAvatar,
   Rating,
+  CircularProgress,
 } from '@mui/material';
 import {
   Add,
@@ -55,6 +56,9 @@ import {
   Warning,
   Star,
 } from '@mui/icons-material';
+import ticketsService from '../../../services/ticketsService';
+import { useAppSelector } from '../../../store/hooks';
+import type { RootState } from '../../../store';
 
 // Tipos
 interface Ticket {
@@ -87,125 +91,13 @@ interface TicketMessage {
   anexos?: string[];
 }
 
-// Mock data
-const mockTickets: Ticket[] = [
-  {
-    id: '1',
-    numero: 'TK-2025-001234',
-    titulo: 'Dúvida sobre emissão de nota fiscal',
-    descricao: 'Não consigo encontrar o código de serviço correto para consultoria.',
-    categoria: 'duvida',
-    prioridade: 'media',
-    status: 'resolvido',
-    dataCriacao: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3),
-    dataAtualizacao: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    atendente: 'Maria Santos',
-    mensagens: [
-      {
-        id: '1',
-        texto: 'Não consigo encontrar o código de serviço correto para consultoria.',
-        autor: 'cliente',
-        nomeAutor: 'Você',
-        data: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3),
-      },
-      {
-        id: '2',
-        texto: 'Olá! Para consultoria em TI, você deve usar o código 1.05. Vou enviar uma tabela completa.',
-        autor: 'atendente',
-        nomeAutor: 'Maria Santos',
-        data: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
-      },
-    ],
-    avaliacao: 5,
-    comentarioAvaliacao: 'Excelente atendimento!',
-    sla: {
-      primeiraResposta: { 
-        prazo: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3 + 1000 * 60 * 60 * 4), 
-        cumprido: true, 
-        dataReal: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2)
-      },
-      resolucao: { 
-        prazo: new Date(Date.now() - 1000 * 60 * 60 * 24 * 1), 
-        cumprido: true, 
-        dataReal: new Date(Date.now() - 1000 * 60 * 60 * 2)
-      },
-    },
-  },
-  {
-    id: '2',
-    numero: 'TK-2025-001235',
-    titulo: 'Erro ao baixar guia de ISS',
-    descricao: 'Quando clico para baixar a guia, aparece uma mensagem de erro.',
-    categoria: 'problema',
-    prioridade: 'alta',
-    status: 'em_andamento',
-    dataCriacao: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    dataAtualizacao: new Date(Date.now() - 1000 * 60 * 30),
-    atendente: 'João Oliveira',
-    mensagens: [
-      {
-        id: '1',
-        texto: 'Quando clico para baixar a guia, aparece uma mensagem de erro.',
-        autor: 'cliente',
-        nomeAutor: 'Você',
-        data: new Date(Date.now() - 1000 * 60 * 60 * 24),
-      },
-      {
-        id: '2',
-        texto: 'Consegue enviar um print do erro?',
-        autor: 'atendente',
-        nomeAutor: 'João Oliveira',
-        data: new Date(Date.now() - 1000 * 60 * 60 * 20),
-      },
-    ],
-    sla: {
-      primeiraResposta: { 
-        prazo: new Date(Date.now() - 1000 * 60 * 60 * 22), 
-        cumprido: true, 
-        dataReal: new Date(Date.now() - 1000 * 60 * 60 * 20)
-      },
-      resolucao: { 
-        prazo: new Date(Date.now() + 1000 * 60 * 60 * 8), // 8 horas restantes
-        cumprido: false,
-      },
-    },
-  },
-  {
-    id: '3',
-    numero: 'TK-2025-001236',
-    titulo: 'Solicitação de relatório personalizado',
-    descricao: 'Preciso de um relatório com todas as notas emitidas para um cliente específico.',
-    categoria: 'solicitacao',
-    prioridade: 'baixa',
-    status: 'aberto',
-    dataCriacao: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    dataAtualizacao: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    mensagens: [
-      {
-        id: '1',
-        texto: 'Preciso de um relatório com todas as notas emitidas para um cliente específico.',
-        autor: 'cliente',
-        nomeAutor: 'Você',
-        data: new Date(Date.now() - 1000 * 60 * 60 * 2),
-      },
-    ],
-    sla: {
-      primeiraResposta: { 
-        prazo: new Date(Date.now() + 1000 * 60 * 60 * 22), // 22 horas restantes
-        cumprido: false,
-      },
-      resolucao: { 
-        prazo: new Date(Date.now() + 1000 * 60 * 60 * 72), // 72 horas restantes
-        cumprido: false,
-      },
-    },
-  },
-];
-
 const TicketsPage: React.FC = () => {
   const theme = useTheme();
+  const { company } = useAppSelector((state: RootState) => state.auth);
   
-  const [tickets, setTickets] = useState<Ticket[]>(mockTickets);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [activeTab, setActiveTab] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
@@ -215,6 +107,73 @@ const TicketsPage: React.FC = () => {
   const [openRating, setOpenRating] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
   const [ratingComment, setRatingComment] = useState('');
+
+  // Buscar tickets da API
+  const fetchTickets = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await ticketsService.findAll();
+      const items = response.items || [];
+      // Mapear dados da API para o formato esperado
+      const mapped: Ticket[] = items.map((t: any) => {
+        const now = new Date();
+        // Calcular SLA baseado na prioridade
+        const slaPrazos = {
+          urgente: { primeiraResposta: 2, resolucao: 8 },
+          alta: { primeiraResposta: 4, resolucao: 24 },
+          media: { primeiraResposta: 8, resolucao: 48 },
+          baixa: { primeiraResposta: 24, resolucao: 72 },
+        };
+        const prazos = slaPrazos[t.prioridade as keyof typeof slaPrazos] || slaPrazos.media;
+        const dataCriacao = new Date(t.criadoEm);
+        
+        return {
+          id: t.id,
+          numero: `TK-${dataCriacao.getFullYear()}-${t.id.substring(0, 6).toUpperCase()}`,
+          titulo: t.assunto,
+          descricao: t.descricao,
+          categoria: t.categoria || 'duvida',
+          prioridade: t.prioridade || 'media',
+          status: t.status === 'aguardando_resposta' ? 'aguardando_cliente' : t.status,
+          dataCriacao,
+          dataAtualizacao: new Date(t.atualizadoEm),
+          atendente: t.atribuidoPara?.nome,
+          mensagens: (t.mensagens || []).map((m: any) => ({
+            id: m.id,
+            texto: m.conteudo,
+            autor: m.autor.tipo,
+            nomeAutor: m.autor.nome,
+            data: new Date(m.criadoEm),
+            anexos: m.anexos,
+          })),
+          avaliacao: undefined,
+          comentarioAvaliacao: undefined,
+          sla: {
+            primeiraResposta: {
+              prazo: new Date(dataCriacao.getTime() + prazos.primeiraResposta * 60 * 60 * 1000),
+              cumprido: t.status !== 'aberto',
+              dataReal: t.status !== 'aberto' ? new Date(t.atualizadoEm) : undefined,
+            },
+            resolucao: {
+              prazo: new Date(dataCriacao.getTime() + prazos.resolucao * 60 * 60 * 1000),
+              cumprido: t.status === 'resolvido' || t.status === 'fechado',
+              dataReal: t.status === 'resolvido' ? new Date(t.atualizadoEm) : undefined,
+            },
+          },
+        };
+      });
+      setTickets(mapped);
+    } catch (err) {
+      console.error('Erro ao carregar tickets:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTickets();
+  }, [fetchTickets]);
+
   
   // Novo ticket
   const [newTicket, setNewTicket] = useState({
@@ -355,75 +314,59 @@ const TicketsPage: React.FC = () => {
     return matchesSearch && matchesStatus && matchesTab;
   });
 
-  const handleCreateTicket = () => {
-    // Calcular SLA baseado na prioridade
-    const slaPrazos = {
-      urgente: { primeiraResposta: 2, resolucao: 8 },
-      alta: { primeiraResposta: 4, resolucao: 24 },
-      media: { primeiraResposta: 8, resolucao: 48 },
-      baixa: { primeiraResposta: 24, resolucao: 72 },
-    };
-
-    const prazos = slaPrazos[newTicket.prioridade as keyof typeof slaPrazos];
-    const now = new Date();
-
-    const ticket: Ticket = {
-      id: Date.now().toString(),
-      numero: `TK-2025-${String(tickets.length + 1237).padStart(6, '0')}`,
-      titulo: newTicket.titulo,
-      descricao: newTicket.descricao,
-      categoria: newTicket.categoria as Ticket['categoria'],
-      prioridade: newTicket.prioridade as Ticket['prioridade'],
-      status: 'aberto',
-      dataCriacao: now,
-      dataAtualizacao: now,
-      mensagens: [
-        {
-          id: '1',
-          texto: newTicket.descricao,
-          autor: 'cliente',
-          nomeAutor: 'Você',
-          data: now,
-        },
-      ],
-      sla: {
-        primeiraResposta: {
-          prazo: new Date(now.getTime() + prazos.primeiraResposta * 60 * 60 * 1000),
-          cumprido: false,
-        },
-        resolucao: {
-          prazo: new Date(now.getTime() + prazos.resolucao * 60 * 60 * 1000),
-          cumprido: false,
-        },
-      },
-    };
-
-    setTickets([ticket, ...tickets]);
-    setOpenNewTicket(false);
-    setNewTicket({ titulo: '', categoria: 'duvida', prioridade: 'media', descricao: '' });
-    setSelectedTicket(ticket);
+  const handleCreateTicket = async () => {
+    if (!company?.id) {
+      setError('Empresa não selecionada');
+      return;
+    }
+    
+    try {
+      await ticketsService.create(company.id, {
+        assunto: newTicket.titulo,
+        descricao: newTicket.descricao,
+        categoria: newTicket.categoria as 'duvida' | 'problema' | 'solicitacao' | 'sugestao',
+        prioridade: newTicket.prioridade as 'baixa' | 'media' | 'alta' | 'urgente',
+      });
+      
+      setOpenNewTicket(false);
+      setNewTicket({ titulo: '', categoria: 'duvida', prioridade: 'media', descricao: '' });
+      fetchTickets(); // Recarregar lista
+    } catch (err: any) {
+      console.error('Erro ao criar ticket:', err);
+      setError(err.response?.data?.message || 'Erro ao criar ticket');
+    }
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!selectedTicket || !newMessage.trim()) return;
 
-    const message: TicketMessage = {
-      id: Date.now().toString(),
-      texto: newMessage,
-      autor: 'cliente',
-      nomeAutor: 'Você',
-      data: new Date(),
-    };
+    try {
+      await ticketsService.addMensagem(selectedTicket.id, {
+        conteudo: newMessage,
+      });
+      
+      // Atualizar localmente enquanto recarrega
+      const message: TicketMessage = {
+        id: Date.now().toString(),
+        texto: newMessage,
+        autor: 'cliente',
+        nomeAutor: 'Você',
+        data: new Date(),
+      };
 
-    const updatedTicket = {
-      ...selectedTicket,
-      mensagens: [...selectedTicket.mensagens, message],
-      dataAtualizacao: new Date(),
-    };
+      const updatedTicket = {
+        ...selectedTicket,
+        mensagens: [...selectedTicket.mensagens, message],
+        dataAtualizacao: new Date(),
+      };
 
-    setTickets(tickets.map((t) => (t.id === selectedTicket.id ? updatedTicket : t)));
-    setSelectedTicket(updatedTicket);
-    setNewMessage('');
+      setSelectedTicket(updatedTicket);
+      setNewMessage('');
+      fetchTickets(); // Recarregar lista para sincronizar
+    } catch (err: any) {
+      console.error('Erro ao enviar mensagem:', err);
+      setError(err.response?.data?.message || 'Erro ao enviar mensagem');
+    }
   };
 
   const stats = {
@@ -569,7 +512,13 @@ const TicketsPage: React.FC = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {filteredTickets.map((ticket) => (
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                          <CircularProgress size={24} />
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredTickets.map((ticket) => (
                       <TableRow
                         key={ticket.id}
                         hover

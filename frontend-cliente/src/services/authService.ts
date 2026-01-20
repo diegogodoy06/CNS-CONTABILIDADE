@@ -1,197 +1,310 @@
+import api from './api';
 import type { User, Company, LoginForm } from '../types';
+
+// ===================================
+// Tipos da API
+// ===================================
+interface ApiUser {
+  id: string;
+  email: string;
+  nome: string;
+  cpf?: string;
+  telefone?: string;
+  celular?: string;
+  tipo: 'ADMIN_SISTEMA' | 'ADMIN_ESCRITORIO' | 'COLABORADOR' | 'CLIENTE';
+  status: 'ATIVO' | 'INATIVO' | 'PENDENTE' | 'BLOQUEADO';
+  emailVerificado: boolean;
+  doisFatoresAtivo: boolean;
+  ultimoLogin?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ApiTokens {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+}
+
+interface ApiLoginResponse {
+  success: boolean;
+  data: {
+    user: ApiUser;
+    tokens: ApiTokens;
+  };
+}
 
 interface LoginResponse {
   user: User;
-  company: Company;
+  company: Company | null;
   token: string;
   refreshToken: string;
 }
 
-// Mock data para desenvolvimento
-const MOCK_USER: User = {
-  id: '1',
-  name: 'João da Silva',
-  email: 'joao@empresa.com.br',
-  role: 'administrador',
-  createdAt: '2024-01-01T00:00:00',
-  lastLogin: new Date().toISOString(),
-};
+// ===================================
+// Funções auxiliares
+// ===================================
 
-const MOCK_COMPANY: Company = {
-  id: '1',
-  cnpj: '12.345.678/0001-99',
-  razaoSocial: 'Empresa Demo Ltda',
-  nomeFantasia: 'Empresa Demo',
-  inscricaoEstadual: '123.456.789.123',
-  inscricaoMunicipal: '12345678',
-  regimeTributario: 'simples',
-  cnaePrincipal: '62.01-5-01',
-  endereco: {
-    cep: '01234-567',
-    logradouro: 'Rua das Flores',
-    numero: '123',
-    complemento: 'Sala 101',
-    bairro: 'Centro',
-    cidade: 'São Paulo',
-    uf: 'SP',
-    codigoMunicipio: '3550308',
-  },
-  telefone: '(11) 3333-4444',
-  email: 'contato@empresa.com.br',
-  responsavelLegal: 'João da Silva',
-  cpfResponsavel: '123.456.789-00',
-  configuracoesFiscais: {
-    aliquotaISSPadrao: 5,
-    municipioPrestacaoPadrao: 'São Paulo',
-    serieNFe: '1',
-    proximoNumeroNota: 1024,
-    codigoTributacaoMunicipal: '620150100',
-    retencoesDefault: {
-      ir: true,
-      pis: true,
-      cofins: true,
-      csll: true,
-      inss: false,
+// Converte usuário da API para tipo do frontend
+function mapApiUserToUser(apiUser: ApiUser): User {
+  return {
+    id: apiUser.id,
+    email: apiUser.email,
+    name: apiUser.nome,
+    role: mapTipoToRole(apiUser.tipo),
+    createdAt: apiUser.createdAt,
+    lastLogin: apiUser.ultimoLogin,
+  };
+}
+
+function mapTipoToRole(tipo: ApiUser['tipo']): User['role'] {
+  switch (tipo) {
+    case 'ADMIN_SISTEMA':
+    case 'ADMIN_ESCRITORIO':
+      return 'administrador';
+    case 'COLABORADOR':
+      return 'operador';
+    case 'CLIENTE':
+    default:
+      return 'visualizador';
+  }
+}
+
+// ===================================
+// Função auxiliar para mapear empresa da API
+// ===================================
+function mapApiEmpresaToCompany(apiEmpresa: any): Company {
+  return {
+    id: apiEmpresa.id,
+    cnpj: apiEmpresa.cnpj,
+    razaoSocial: apiEmpresa.razaoSocial,
+    nomeFantasia: apiEmpresa.nomeFantasia,
+    inscricaoMunicipal: apiEmpresa.inscricaoMunicipal,
+    inscricaoEstadual: apiEmpresa.inscricaoEstadual,
+    regimeTributario: apiEmpresa.regimeTributario?.toLowerCase() || 'simples',
+    cnaePrincipal: apiEmpresa.cnaePrincipal || '',
+    endereco: {
+      cep: apiEmpresa.cep || '',
+      logradouro: apiEmpresa.logradouro || '',
+      numero: apiEmpresa.numero || '',
+      complemento: apiEmpresa.complemento,
+      bairro: apiEmpresa.bairro || '',
+      cidade: apiEmpresa.cidade || '',
+      uf: apiEmpresa.uf || '',
+      codigoMunicipio: apiEmpresa.codigoMunicipio || '',
     },
-  },
-  status: 'ativo',
-  createdAt: '2024-01-01T00:00:00',
-};
-
-// Credenciais válidas para teste
-// Usuários podem ter acesso a múltiplas empresas
-const VALID_CREDENTIALS = [
-  { email: 'joao@empresa.com.br', senha: '12345678', requiresTwoFA: true },
-  { email: 'admin@cnscontabil.com.br', senha: 'admin123', requiresTwoFA: false },
-  { email: 'contador@cnscontabil.com.br', senha: 'contador123', requiresTwoFA: false },
-];
-
-// Empresas disponíveis para cada usuário
-const USER_COMPANIES: Record<string, Company[]> = {
-  'joao@empresa.com.br': [
-    { ...MOCK_COMPANY, id: '1', cnpj: '12.345.678/0001-99', nomeFantasia: 'Empresa Demo', razaoSocial: 'Empresa Demo Ltda' },
-    { ...MOCK_COMPANY, id: '2', cnpj: '98.765.432/0001-10', nomeFantasia: 'Outra Empresa', razaoSocial: 'Outra Empresa S/A' },
-  ],
-  'admin@cnscontabil.com.br': [
-    { ...MOCK_COMPANY, id: '1', cnpj: '12.345.678/0001-99', nomeFantasia: 'Empresa Demo', razaoSocial: 'Empresa Demo Ltda' },
-  ],
-  'contador@cnscontabil.com.br': [
-    { ...MOCK_COMPANY, id: '1', cnpj: '12.345.678/0001-99', nomeFantasia: 'Empresa Demo', razaoSocial: 'Empresa Demo Ltda' },
-    { ...MOCK_COMPANY, id: '2', cnpj: '98.765.432/0001-10', nomeFantasia: 'Outra Empresa', razaoSocial: 'Outra Empresa S/A' },
-    { ...MOCK_COMPANY, id: '3', cnpj: '11.222.333/0001-44', nomeFantasia: 'Terceira Empresa', razaoSocial: 'Terceira Empresa ME' },
-  ],
-};
+    telefone: apiEmpresa.telefone,
+    email: apiEmpresa.email || '',
+    responsavelLegal: apiEmpresa.responsavelNome || '',
+    cpfResponsavel: apiEmpresa.responsavelCpf || '',
+    configuracoesFiscais: {
+      aliquotaISSPadrao: apiEmpresa.aliquotaIss || 5,
+      municipioPrestacaoPadrao: apiEmpresa.cidade || '',
+      serieNFe: '1',
+      proximoNumeroNota: 1,
+      retencoesDefault: {
+        ir: false,
+        pis: false,
+        cofins: false,
+        csll: false,
+        inss: false,
+      },
+    },
+    status: apiEmpresa.status?.toLowerCase() || 'ativo',
+    createdAt: apiEmpresa.createdAt,
+  };
+}
 
 export const authService = {
-  // Login com Email e senha (MODO MOCK)
+  // Login com Email e senha
   async login(data: LoginForm): Promise<LoginResponse> {
-    // Simula delay de rede
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    const email = data.email.toLowerCase().trim();
-    
-    // Verifica credenciais
-    const credential = VALID_CREDENTIALS.find(
-      cred => cred.email === email && cred.senha === data.senha
-    );
-    
-    if (!credential) {
-      throw new Error('Email ou senha inválidos');
+    try {
+      const response = await api.post<ApiLoginResponse>('/auth/login', {
+        email: data.email.toLowerCase().trim(),
+        senha: data.senha,
+      });
+
+      // API retorna { success, data: { user, tokens } }
+      const apiData = response.data.data || response.data;
+      const { user: apiUser, tokens } = apiData as { user: ApiUser; tokens: ApiTokens };
+
+      // Buscar empresas do usuário após login
+      let company: Company | null = null;
+      try {
+        const empresasResponse = await api.get<{ data: any[] } | any[]>('/empresas', {
+          headers: { Authorization: `Bearer ${tokens.accessToken}` }
+        });
+        // API pode retornar { data: [...] } ou diretamente [...]
+        const empresasData = empresasResponse.data;
+        const empresas = Array.isArray(empresasData) 
+          ? empresasData 
+          : (empresasData.data || []);
+        if (empresas && empresas.length > 0) {
+          company = mapApiEmpresaToCompany(empresas[0]);
+        }
+      } catch (err) {
+        console.warn('Não foi possível carregar empresas do usuário:', err);
+      }
+
+      return {
+        user: mapApiUserToUser(apiUser),
+        company,
+        token: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      };
+    } catch (error: any) {
+      console.error('Erro no login:', error.response?.data || error);
+      const message = error.response?.data?.message || 'Erro ao fazer login';
+      throw new Error(message);
     }
-    
-    // Retorna dados mock (primeira empresa do usuário)
-    const companies = USER_COMPANIES[email] || [MOCK_COMPANY];
-    return {
-      user: { ...MOCK_USER, email: email },
-      company: companies[0],
-      token: 'mock-jwt-token-' + Date.now(),
-      refreshToken: 'mock-refresh-token-' + Date.now(),
-    };
   },
 
-  // Obter empresas do usuário (MOCK)
-  async getUserCompanies(email: string): Promise<Company[]> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return USER_COMPANIES[email.toLowerCase()] || [];
+  // Obter empresas do usuário
+  async getUserCompanies(): Promise<Company[]> {
+    try {
+      const response = await api.get<{ data: any[] }>('/empresas');
+      const empresas = response.data.data || response.data;
+      return empresas.map(mapApiEmpresaToCompany);
+    } catch (error) {
+      console.warn('Erro ao buscar empresas:', error);
+      return [];
+    }
   },
 
-  // Verificar se precisa de 2FA (MOCK)
-  async checkRequires2FA(email: string): Promise<boolean> {
-    const credential = VALID_CREDENTIALS.find(c => c.email === email.toLowerCase());
-    return credential?.requiresTwoFA || false;
-  },
-
-  // Logout (MOCK)
+  // Logout
   async logout(): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    console.log('Logout realizado');
+    try {
+      await api.post('/auth/logout');
+    } catch (error) {
+      console.warn('Erro ao fazer logout:', error);
+    }
   },
 
-  // Refresh token (MOCK)
-  async refreshToken(_refreshToken: string): Promise<{ token: string; refreshToken: string }> {
-    await new Promise(resolve => setTimeout(resolve, 500));
+  // Refresh token
+  async refreshToken(refreshToken: string): Promise<{ token: string; refreshToken: string }> {
+    const response = await api.post<ApiTokens>('/auth/refresh', { refreshToken });
     return {
-      token: 'mock-jwt-token-' + Date.now(),
-      refreshToken: 'mock-refresh-token-' + Date.now(),
+      token: response.data.accessToken,
+      refreshToken: response.data.refreshToken,
     };
   },
 
-  // Recuperação de senha - Solicitar reset (MOCK)
-  async requestPasswordReset(data: { email: string; cpf: string }): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    console.log('Reset de senha solicitado para:', data.email);
+  // Recuperação de senha - Solicitar reset
+  async requestPasswordReset(data: { email: string; cpf?: string }): Promise<void> {
+    await api.post('/auth/forgot-password', {
+      email: data.email.toLowerCase().trim(),
+    });
   },
 
-  // Recuperação de senha - Validar token (MOCK)
-  async validateResetToken(_token: string): Promise<boolean> {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return true;
-  },
-
-  // Recuperação de senha - Definir nova senha (MOCK)
-  async resetPassword(_token: string, _newPassword: string): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    console.log('Senha redefinida com sucesso');
-  },
-
-  // Alterar senha (MOCK)
-  async changePassword(_currentPassword: string, _newPassword: string): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    console.log('Senha alterada com sucesso');
-  },
-
-  // Obter usuário atual (MOCK)
-  async getCurrentUser(): Promise<{ user: User; company: Company }> {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return { user: MOCK_USER, company: MOCK_COMPANY };
-  },
-
-  // Verificar 2FA (MOCK)
-  async verify2FA(code: string): Promise<{ token: string }> {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    if (code === '123456') {
-      return { token: 'mock-2fa-token-' + Date.now() };
+  // Recuperação de senha - Validar token
+  async validateResetToken(token: string): Promise<boolean> {
+    try {
+      await api.get(`/auth/reset-password/${token}`);
+      return true;
+    } catch {
+      return false;
     }
-    throw new Error('Código 2FA inválido');
   },
 
-  // Ativar 2FA (MOCK)
+  // Recuperação de senha - Definir nova senha
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    await api.post(`/auth/reset-password/${token}`, {
+      novaSenha: newPassword,
+    });
+  },
+
+  // Alterar senha
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await api.post('/auth/change-password', {
+      senhaAtual: currentPassword,
+      novaSenha: newPassword,
+    });
+  },
+
+  // Obter usuário atual
+  async getCurrentUser(): Promise<{ user: User; company: Company | null }> {
+    const response = await api.get<{ data?: ApiUser } | ApiUser>('/auth/me');
+    
+    // API pode retornar { data: user } ou diretamente user
+    const responseData = response.data as any;
+    const apiUser: ApiUser = responseData.data || responseData;
+    
+    // Buscar empresa selecionada
+    let company: Company | null = null;
+    try {
+      const empresasResponse = await api.get<{ data: any[] } | any[]>('/empresas');
+      const empresasData = empresasResponse.data as any;
+      const empresas = Array.isArray(empresasData) 
+        ? empresasData 
+        : (empresasData.data || []);
+      if (empresas && empresas.length > 0) {
+        company = mapApiEmpresaToCompany(empresas[0]);
+      }
+    } catch {
+      console.warn('Não foi possível carregar empresas do usuário');
+    }
+
+    return {
+      user: mapApiUserToUser(apiUser),
+      company,
+    };
+  },
+
+  // Verificar 2FA
+  async verify2FA(code: string, email?: string): Promise<{ token: string; refreshToken: string }> {
+    const response = await api.post<ApiTokens>('/auth/2fa/verify', {
+      codigo: code,
+      email,
+    });
+
+    return {
+      token: response.data.accessToken,
+      refreshToken: response.data.refreshToken,
+    };
+  },
+
+  // Ativar 2FA
   async enable2FA(): Promise<{ secret: string; qrCode: string }> {
-    await new Promise(resolve => setTimeout(resolve, 800));
+    const response = await api.post<{ secret: string; qrCodeUrl: string }>('/auth/2fa/setup');
     return {
-      secret: 'JBSWY3DPEHPK3PXP',
-      qrCode: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      secret: response.data.secret,
+      qrCode: response.data.qrCodeUrl,
     };
   },
 
-  // Desativar 2FA (MOCK)
+  // Desativar 2FA
   async disable2FA(code: string): Promise<void> {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    if (code !== '123456') {
-      throw new Error('Código 2FA inválido');
-    }
-    console.log('2FA desativado');
+    await api.post('/auth/2fa/disable', { codigo: code });
+  },
+
+  // Listar dispositivos conectados
+  async getDispositivos(): Promise<Dispositivo[]> {
+    const response = await api.get('/auth/dispositivos');
+    return response.data.data || response.data;
+  },
+
+  // Revogar sessão de um dispositivo
+  async revogarDispositivo(id: string): Promise<void> {
+    await api.delete(`/auth/dispositivos/${id}`);
+  },
+
+  // Revogar todas as sessões exceto a atual
+  async revogarTodosDispositivos(): Promise<void> {
+    await api.delete('/auth/dispositivos');
   },
 };
+
+// Interface de Dispositivo
+export interface Dispositivo {
+  id: string;
+  tipo: 'desktop' | 'mobile' | 'tablet';
+  nome: string;
+  navegador: string;
+  sistemaOperacional: string;
+  ip: string;
+  localizacao: string;
+  ultimoAcesso: string;
+  sessaoAtual: boolean;
+}
 
 export default authService;

@@ -144,7 +144,7 @@ export class ConfiguracoesService {
       },
     });
 
-    return vinculos.map((v) => ({
+    return vinculos.map((v: any) => ({
       ...v.empresa,
       role: v.role,
     }));
@@ -200,7 +200,7 @@ export class ConfiguracoesService {
       orderBy: { usuario: { nome: 'asc' } },
     });
 
-    return colaboradores.map((c) => ({
+    return colaboradores.map((c: any) => ({
       ...c.usuario,
       cargo: c.cargo,
       departamento: c.departamento,

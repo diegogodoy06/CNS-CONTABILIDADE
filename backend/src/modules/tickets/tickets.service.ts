@@ -59,7 +59,7 @@ export class TicketsService {
       select: { empresaId: true },
     });
 
-    const empresaIds = empresasUsuario.map((e) => e.empresaId);
+    const empresaIds = empresasUsuario.map((e: any) => e.empresaId);
 
     const where: any = { empresaId: { in: empresaIds } };
     if (filtros.status) where.status = filtros.status;

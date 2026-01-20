@@ -55,6 +55,7 @@ export class TomadoresService {
         estadoId: dto.estadoId,
         municipioCodigo: dto.municipioCodigo,
         observacoes: dto.observacoes,
+        tags: dto.tags,
       },
       include: {
         estado: true,
@@ -220,6 +221,7 @@ export class TomadoresService {
         estadoId: dto.estadoId,
         municipioCodigo: dto.municipioCodigo,
         observacoes: dto.observacoes,
+        tags: dto.tags,
         ativo: dto.ativo,
       },
       include: {
@@ -308,7 +310,7 @@ export class TomadoresService {
       const empresas = await this.prisma.empresa.findMany({
         select: { id: true },
       });
-      return empresas.map((e) => e.id);
+      return empresas.map((e: any) => e.id);
     }
 
     if (user.tipo === TipoUsuario.CLIENTE) {
@@ -316,7 +318,7 @@ export class TomadoresService {
         where: { usuarioId: user.id, ativo: true },
         select: { empresaId: true },
       });
-      return vinculos.map((v) => v.empresaId);
+      return vinculos.map((v: any) => v.empresaId);
     }
 
     // Colaborador ou admin escritório
@@ -329,7 +331,7 @@ export class TomadoresService {
         where: { escritorioId: colaborador.escritorioId },
         select: { id: true },
       });
-      return empresas.map((e) => e.id);
+      return empresas.map((e: any) => e.id);
     }
 
     return [];

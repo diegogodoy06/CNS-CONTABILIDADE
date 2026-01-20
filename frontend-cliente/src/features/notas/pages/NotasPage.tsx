@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Box,
@@ -37,6 +37,7 @@ import {
   Snackbar,
   Checkbox,
   Badge,
+  CircularProgress,
 } from '@mui/material';
 import {
   Search,
@@ -65,128 +66,13 @@ import {
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { NotaFiscal, NotaFiscalStatus, Tomador } from '../../../types';
+import notasService from '../../../services/notasService';
+import tomadoresService from '../../../services/tomadoresService';
+import { useAppSelector } from '../../../store/hooks';
+import type { RootState } from '../../../store';
 import CancelarNotaDialog from '../components/CancelarNotaDialog';
 import FiltrosAvancadosDrawer, { filtrosIniciais, type FiltrosNotas } from '../components/FiltrosAvancadosDrawer';
 import ExportarNotasDialog from '../components/ExportarNotasDialog';
-
-// Mock data
-const mockNotas: NotaFiscal[] = [
-  {
-    id: '1',
-    numero: 1023,
-    serie: '1',
-    tipo: 'nfse',
-    status: 'emitida',
-    tomador: {
-      id: '1',
-      tipo: 'pj',
-      documento: '12345678000190',
-      razaoSocial: 'Tech Solutions LTDA',
-      endereco: { cep: '01310100', logradouro: 'Av Paulista', numero: '1000', bairro: 'Bela Vista', cidade: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
-      email: 'contato@techsolutions.com.br',
-      ativo: true,
-      totalNotas: 15,
-      faturamentoTotal: 67500,
-      createdAt: '2024-01-01',
-      updatedAt: '2024-12-01',
-    },
-    servico: { descricao: 'Desenvolvimento de Software', cnae: '6201501', codigoTributacaoMunicipal: '1.01' },
-    valores: { valorServico: 4500, baseCalculo: 4500, valorLiquido: 4275 },
-    tributos: { iss: { aliquota: 5, valor: 225, retido: false, exigibilidade: 'normal' } },
-    dataEmissao: '2024-12-10',
-    dataCompetencia: '12/2024',
-    localPrestacao: { municipio: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
-    protocoloPrefeitura: 'SP2024121000001',
-    codigoVerificacao: 'ABC123DEF',
-    createdAt: '2024-12-10T10:30:00',
-    updatedAt: '2024-12-10T10:30:00',
-  },
-  {
-    id: '2',
-    numero: 1022,
-    serie: '1',
-    tipo: 'nfse',
-    status: 'emitida',
-    tomador: {
-      id: '2',
-      tipo: 'pj',
-      documento: '98765432000110',
-      razaoSocial: 'Consultoria Alpha S.A',
-      endereco: { cep: '04543011', logradouro: 'Av Faria Lima', numero: '2000', bairro: 'Itaim Bibi', cidade: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
-      email: 'contato@alpha.com.br',
-      ativo: true,
-      totalNotas: 8,
-      faturamentoTotal: 32000,
-      createdAt: '2024-03-01',
-      updatedAt: '2024-12-01',
-    },
-    servico: { descricao: 'Consultoria em TI', cnae: '6204000', codigoTributacaoMunicipal: '1.05' },
-    valores: { valorServico: 2000, baseCalculo: 2000, valorLiquido: 1900 },
-    tributos: { iss: { aliquota: 5, valor: 100, retido: false, exigibilidade: 'normal' } },
-    dataEmissao: '2024-12-08',
-    dataCompetencia: '12/2024',
-    localPrestacao: { municipio: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
-    protocoloPrefeitura: 'SP2024120800002',
-    codigoVerificacao: 'XYZ789ABC',
-    createdAt: '2024-12-08T14:20:00',
-    updatedAt: '2024-12-08T14:20:00',
-  },
-  {
-    id: '3',
-    serie: '1',
-    tipo: 'nfse',
-    status: 'rascunho',
-    tomador: {
-      id: '3',
-      tipo: 'pf',
-      documento: '12345678901',
-      nome: 'João Silva',
-      endereco: { cep: '01310100', logradouro: 'Rua Augusta', numero: '500', bairro: 'Consolação', cidade: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
-      email: 'joao@email.com',
-      ativo: true,
-      totalNotas: 3,
-      faturamentoTotal: 2550,
-      createdAt: '2024-06-01',
-      updatedAt: '2024-12-01',
-    },
-    servico: { descricao: 'Manutenção de Website', cnae: '6201501', codigoTributacaoMunicipal: '1.01' },
-    valores: { valorServico: 850, baseCalculo: 850, valorLiquido: 850 },
-    tributos: { iss: { aliquota: 5, valor: 42.5, retido: true, exigibilidade: 'normal' } },
-    dataCompetencia: '12/2024',
-    localPrestacao: { municipio: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
-    createdAt: '2024-12-05T09:15:00',
-    updatedAt: '2024-12-05T09:15:00',
-  },
-  {
-    id: '4',
-    numero: 1020,
-    serie: '1',
-    tipo: 'nfse',
-    status: 'cancelada',
-    tomador: {
-      id: '4',
-      tipo: 'pj',
-      documento: '55566677000188',
-      razaoSocial: 'Startup Digital ME',
-      endereco: { cep: '04547004', logradouro: 'Rua Funchal', numero: '418', bairro: 'Vila Olímpia', cidade: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
-      email: 'contato@startup.com.br',
-      ativo: true,
-      totalNotas: 5,
-      faturamentoTotal: 12500,
-      createdAt: '2024-05-01',
-      updatedAt: '2024-12-01',
-    },
-    servico: { descricao: 'Desenvolvimento de App', cnae: '6201501', codigoTributacaoMunicipal: '1.01' },
-    valores: { valorServico: 3200, baseCalculo: 3200, valorLiquido: 3040 },
-    tributos: { iss: { aliquota: 5, valor: 160, retido: false, exigibilidade: 'normal' } },
-    dataEmissao: '2024-12-01',
-    dataCompetencia: '12/2024',
-    localPrestacao: { municipio: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
-    protocoloPrefeitura: 'SP2024120100004',
-    createdAt: '2024-12-01T11:30:00',
-    updatedAt: '2024-12-02T16:00:00',
-  },
-];
 
 const statusConfig: Record<NotaFiscalStatus, { label: string; color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'; icon: React.ReactElement }> = {
   rascunho: { label: 'Rascunho', color: 'default', icon: <Description fontSize="small" /> },
@@ -201,16 +87,19 @@ const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-// Mock Tomadores for autocomplete
-const mockTomadores: Partial<Tomador>[] = [
-  { id: '1', tipo: 'pj', documento: '12345678000190', razaoSocial: 'Tech Solutions LTDA' },
-  { id: '2', tipo: 'pj', documento: '98765432000110', razaoSocial: 'Consultoria Alpha S.A' },
-  { id: '3', tipo: 'pf', documento: '12345678901', nome: 'João Silva' },
-];
-
 const NotasPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { company } = useAppSelector((state: RootState) => state.auth);
+  
+  // Estados para dados da API
+  const [notas, setNotas] = useState<NotaFiscal[]>([]);
+  const [tomadores, setTomadores] = useState<Tomador[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState({ todas: 0, emitidas: 0, rascunhos: 0, canceladas: 0 });
+  
   const [activeTab, setActiveTab] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
@@ -219,6 +108,73 @@ const NotasPage: React.FC = () => {
   const [selectedNota, setSelectedNota] = useState<NotaFiscal | null>(null);
   const [emitirDialogOpen, setEmitirDialogOpen] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
+
+  // Buscar notas da API
+  const fetchNotas = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const statusMap: Record<number, NotaFiscalStatus | undefined> = {
+        0: undefined,
+        1: 'emitida',
+        2: 'rascunho',
+        3: 'cancelada',
+      };
+      
+      const response = await notasService.findAll({
+        empresaId: company?.id,
+        status: statusMap[activeTab],
+        busca: searchTerm || undefined,
+        page: page + 1,
+        limit: rowsPerPage,
+      });
+      
+      setNotas(response.items || []);
+      setTotalCount(response.meta?.total || 0);
+      
+      // Buscar contagem por status (todas as abas)
+      const [allNotas, emitidasRes, rascunhosRes, canceladasRes] = await Promise.all([
+        notasService.findAll({ empresaId: company?.id, limit: 1 }),
+        notasService.findAll({ empresaId: company?.id, status: 'emitida', limit: 1 }),
+        notasService.findAll({ empresaId: company?.id, status: 'rascunho', limit: 1 }),
+        notasService.findAll({ empresaId: company?.id, status: 'cancelada', limit: 1 }),
+      ]);
+      
+      setStats({
+        todas: allNotas.meta?.total || 0,
+        emitidas: emitidasRes.meta?.total || 0,
+        rascunhos: rascunhosRes.meta?.total || 0,
+        canceladas: canceladasRes.meta?.total || 0,
+      });
+    } catch (err: any) {
+      console.error('Erro ao carregar notas:', err);
+      setError(err.response?.data?.message || 'Erro ao carregar notas fiscais');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [company?.id, activeTab, searchTerm, page, rowsPerPage]);
+
+  // Buscar tomadores para autocomplete
+  const fetchTomadores = useCallback(async () => {
+    try {
+      const response = await tomadoresService.findAll({
+        empresaId: company?.id,
+        ativo: true,
+        limit: 50,
+      });
+      setTomadores(response.items || []);
+    } catch (err) {
+      console.error('Erro ao carregar tomadores:', err);
+    }
+  }, [company?.id]);
+
+  useEffect(() => {
+    fetchNotas();
+  }, [fetchNotas]);
+
+  useEffect(() => {
+    fetchTomadores();
+  }, [fetchTomadores]);
 
   // Sincronizar aba com query param
   useEffect(() => {
@@ -260,25 +216,14 @@ const NotasPage: React.FC = () => {
   const [notaParaVisualizar, setNotaParaVisualizar] = useState<NotaFiscal | null>(null);
 
   const tabs = [
-    { label: 'Todas', count: mockNotas.length },
-    { label: 'Emitidas', count: mockNotas.filter(n => n.status === 'emitida').length },
-    { label: 'Rascunhos', count: mockNotas.filter(n => n.status === 'rascunho').length },
-    { label: 'Canceladas', count: mockNotas.filter(n => n.status === 'cancelada').length },
+    { label: 'Todas', count: stats.todas },
+    { label: 'Emitidas', count: stats.emitidas },
+    { label: 'Rascunhos', count: stats.rascunhos },
+    { label: 'Canceladas', count: stats.canceladas },
   ];
 
-  const filteredNotas = mockNotas.filter(nota => {
-    const matchesSearch =
-      nota.tomador.razaoSocial?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      nota.tomador.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      nota.numero?.toString().includes(searchTerm);
-    
-    let matchesTab = true;
-    if (activeTab === 1) matchesTab = nota.status === 'emitida';
-    if (activeTab === 2) matchesTab = nota.status === 'rascunho';
-    if (activeTab === 3) matchesTab = nota.status === 'cancelada';
-    
-    return matchesSearch && matchesTab;
-  });
+  // Notas já filtradas pela API
+  const filteredNotas = notas;
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, nota: NotaFiscal) => {
     setAnchorEl(event.currentTarget);
@@ -303,15 +248,103 @@ const NotasPage: React.FC = () => {
     }
   };
 
+  // Função para download de PDF
+  const handleDownloadPdf = async (nota: NotaFiscal) => {
+    try {
+      const blob = await notasService.downloadPdf(nota.id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `nota-${nota.numero || nota.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      setSnackbar({
+        open: true,
+        message: 'Download do PDF iniciado!',
+        severity: 'success'
+      });
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || 'Erro ao baixar PDF',
+        severity: 'error'
+      });
+    }
+    handleMenuClose();
+  };
+
+  // Função para download de XML
+  const handleDownloadXml = async (nota: NotaFiscal) => {
+    try {
+      const blob = await notasService.downloadXml(nota.id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `nota-${nota.numero || nota.id}.xml`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      setSnackbar({
+        open: true,
+        message: 'Download do XML iniciado!',
+        severity: 'success'
+      });
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || 'Erro ao baixar XML',
+        severity: 'error'
+      });
+    }
+    handleMenuClose();
+  };
+
+  // Função para emitir nota (rascunho)
+  const handleEmitirNota = async (nota: NotaFiscal) => {
+    if (nota.status !== 'rascunho') return;
+    try {
+      await notasService.emitir(nota.id);
+      setSnackbar({
+        open: true,
+        message: 'Nota fiscal emitida com sucesso!',
+        severity: 'success'
+      });
+      fetchNotas();
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || 'Erro ao emitir nota fiscal',
+        severity: 'error'
+      });
+    }
+    handleMenuClose();
+  };
+
+  // Função para duplicar nota
+  const handleDuplicarNota = (nota: NotaFiscal) => {
+    navigate(`/notas/emitir?duplicar=${nota.id}`);
+    handleMenuClose();
+  };
+
   const handleConfirmarCancelamento = async (notaId: string, justificativa: string) => {
-    // Simula chamada à API
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log('Cancelando nota:', notaId, 'Justificativa:', justificativa);
-    setSnackbar({
-      open: true,
-      message: 'Nota fiscal cancelada com sucesso!',
-      severity: 'success'
-    });
+    try {
+      await notasService.cancelar(notaId, { motivo: justificativa });
+      setSnackbar({
+        open: true,
+        message: 'Nota fiscal cancelada com sucesso!',
+        severity: 'success'
+      });
+      fetchNotas(); // Recarrega as notas
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || 'Erro ao cancelar nota fiscal',
+        severity: 'error'
+      });
+    }
   };
 
   // Funções para filtros
@@ -411,7 +444,7 @@ const NotasPage: React.FC = () => {
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                {mockNotas.filter(n => n.status === 'emitida').length}
+                {stats.emitidas}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Emitidas este mês
@@ -423,7 +456,7 @@ const NotasPage: React.FC = () => {
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography variant="h4" sx={{ fontWeight: 700, color: 'success.main' }}>
-                {formatCurrency(mockNotas.filter(n => n.status === 'emitida').reduce((sum, n) => sum + n.valores.valorServico, 0))}
+                {formatCurrency(notas.filter(n => n.status === 'emitida').reduce((sum, n) => sum + (n.valores?.valorServico || 0), 0))}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Faturamento
@@ -435,7 +468,7 @@ const NotasPage: React.FC = () => {
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography variant="h4" sx={{ fontWeight: 700, color: 'warning.main' }}>
-                {mockNotas.filter(n => n.status === 'rascunho').length}
+                {stats.rascunhos}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Rascunhos pendentes
@@ -447,7 +480,7 @@ const NotasPage: React.FC = () => {
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography variant="h4" sx={{ fontWeight: 700, color: 'info.main' }}>
-                {formatCurrency(mockNotas.filter(n => n.status === 'emitida').reduce((sum, n) => sum + n.tributos.iss.valor, 0))}
+                {formatCurrency(notas.filter(n => n.status === 'emitida').reduce((sum, n) => sum + (n.tributos?.iss?.valor || 0), 0))}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 ISS do período
@@ -605,8 +638,8 @@ const NotasPage: React.FC = () => {
                           </IconButton>
                         </Tooltip>
                         {nota.status === 'emitida' && (
-                          <Tooltip title="Download">
-                            <IconButton size="small">
+                          <Tooltip title="Download PDF">
+                            <IconButton size="small" onClick={() => handleDownloadPdf(nota)}>
                               <Download fontSize="small" />
                             </IconButton>
                           </Tooltip>
@@ -645,11 +678,11 @@ const NotasPage: React.FC = () => {
         </MenuItem>
         {selectedNota?.status === 'emitida' && (
           <>
-            <MenuItem onClick={handleMenuClose}>
+            <MenuItem onClick={() => selectedNota && handleDownloadPdf(selectedNota)}>
               <ListItemIcon><Download fontSize="small" /></ListItemIcon>
               Download PDF
             </MenuItem>
-            <MenuItem onClick={handleMenuClose}>
+            <MenuItem onClick={() => selectedNota && handleDownloadXml(selectedNota)}>
               <ListItemIcon><Download fontSize="small" /></ListItemIcon>
               Download XML
             </MenuItem>
@@ -666,11 +699,11 @@ const NotasPage: React.FC = () => {
         )}
         {selectedNota?.status === 'rascunho' && (
           <>
-            <MenuItem onClick={handleMenuClose}>
+            <MenuItem onClick={() => selectedNota && handleEmitirNota(selectedNota)}>
               <ListItemIcon><Send fontSize="small" /></ListItemIcon>
               Emitir nota
             </MenuItem>
-            <MenuItem onClick={handleMenuClose}>
+            <MenuItem onClick={() => selectedNota && handleDuplicarNota(selectedNota)}>
               <ListItemIcon><ContentCopy fontSize="small" /></ListItemIcon>
               Duplicar
             </MenuItem>
@@ -711,7 +744,7 @@ const NotasPage: React.FC = () => {
                 Selecione o Tomador
               </Typography>
               <Autocomplete
-                options={mockTomadores}
+                options={tomadores}
                 getOptionLabel={(option) => option.razaoSocial || option.nome || ''}
                 renderInput={(params) => (
                   <TextField
@@ -922,12 +955,12 @@ const NotasPage: React.FC = () => {
               {notaParaVisualizar?.status === 'emitida' && (
                 <>
                   <Tooltip title="Download PDF">
-                    <IconButton size="small">
+                    <IconButton size="small" onClick={() => notaParaVisualizar && handleDownloadPdf(notaParaVisualizar)}>
                       <Download />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Imprimir">
-                    <IconButton size="small">
+                    <IconButton size="small" onClick={() => window.print()}>
                       <Print />
                     </IconButton>
                   </Tooltip>
@@ -1149,13 +1182,26 @@ const NotasPage: React.FC = () => {
             )}
             {notaParaVisualizar?.status === 'emitida' && (
               <>
-                <Button variant="outlined" startIcon={<ContentCopy />}>
+                <Button 
+                  variant="outlined" 
+                  startIcon={<ContentCopy />}
+                  onClick={() => {
+                    if (notaParaVisualizar) {
+                      handleDuplicarNota(notaParaVisualizar);
+                      setVisualizarDialogOpen(false);
+                    }
+                  }}
+                >
                   Duplicar
                 </Button>
                 <Button variant="outlined" startIcon={<Send />}>
                   Enviar por E-mail
                 </Button>
-                <Button variant="contained" startIcon={<Download />}>
+                <Button 
+                  variant="contained" 
+                  startIcon={<Download />}
+                  onClick={() => notaParaVisualizar && handleDownloadPdf(notaParaVisualizar)}
+                >
                   Download PDF
                 </Button>
               </>

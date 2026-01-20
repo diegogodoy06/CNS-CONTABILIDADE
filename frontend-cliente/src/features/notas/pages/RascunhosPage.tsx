@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -31,6 +31,7 @@ import {
   Snackbar,
   Paper,
   Grid,
+  CircularProgress,
 } from '@mui/material';
 import {
   Search,
@@ -49,6 +50,7 @@ import {
 } from '@mui/icons-material';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import notasService from '../../../services/notasService';
 
 // Tipos para rascunho
 interface Rascunho {
@@ -65,72 +67,6 @@ interface Rascunho {
   camposFaltando?: string[];
 }
 
-// Mock de rascunhos
-const mockRascunhos: Rascunho[] = [
-  {
-    id: '1',
-    tomadorNome: 'Tech Solutions Ltda',
-    tomadorCnpjCpf: '12.345.678/0001-90',
-    servicoDescricao: 'Consultoria em Desenvolvimento de Software',
-    valor: 15000,
-    criadoEm: '2024-11-28T10:30:00',
-    atualizadoEm: '2024-11-28T14:45:00',
-    competencia: '12/2024',
-    status: 'pronto',
-    etapa: 3,
-  },
-  {
-    id: '2',
-    tomadorNome: 'ABC Comércio SA',
-    tomadorCnpjCpf: '98.765.432/0001-10',
-    servicoDescricao: '',
-    valor: 0,
-    criadoEm: '2024-11-25T09:00:00',
-    atualizadoEm: '2024-11-25T09:15:00',
-    competencia: '11/2024',
-    status: 'incompleto',
-    etapa: 1,
-    camposFaltando: ['Descrição do serviço', 'Valor'],
-  },
-  {
-    id: '3',
-    tomadorNome: 'Maria Silva',
-    tomadorCnpjCpf: '123.456.789-00',
-    servicoDescricao: 'Serviços de Marketing Digital',
-    valor: 3500,
-    criadoEm: '2024-11-20T16:00:00',
-    atualizadoEm: '2024-11-22T11:30:00',
-    competencia: '11/2024',
-    status: 'pronto',
-    etapa: 3,
-  },
-  {
-    id: '4',
-    tomadorNome: 'Indústria XYZ',
-    tomadorCnpjCpf: '11.222.333/0001-44',
-    servicoDescricao: 'Manutenção de Equipamentos',
-    valor: 8500,
-    criadoEm: '2024-11-15T08:00:00',
-    atualizadoEm: '2024-11-18T17:00:00',
-    competencia: '11/2024',
-    status: 'incompleto',
-    etapa: 2,
-    camposFaltando: ['CNAE', 'Código de Tributação'],
-  },
-  {
-    id: '5',
-    tomadorNome: 'Escritório Jurídico Associado',
-    tomadorCnpjCpf: '55.666.777/0001-88',
-    servicoDescricao: 'Assessoria Contábil Mensal',
-    valor: 2800,
-    criadoEm: '2024-10-30T14:00:00',
-    atualizadoEm: '2024-10-30T14:30:00',
-    competencia: '10/2024',
-    status: 'pronto',
-    etapa: 3,
-  },
-];
-
 const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -142,7 +78,8 @@ const RascunhosPage: React.FC = () => {
   const navigate = useNavigate();
   
   // Estados
-  const [rascunhos] = useState<Rascunho[]>(mockRascunhos);
+  const [rascunhos, setRascunhos] = useState<Rascunho[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -156,6 +93,43 @@ const RascunhosPage: React.FC = () => {
     message: '',
     severity: 'success',
   });
+
+  // Buscar rascunhos da API
+  const fetchRascunhos = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await notasService.findRascunhos({ page: page + 1, limit: rowsPerPage });
+      const items = response.items || [];
+      // Mapear dados da API para o formato esperado
+      const mapped: Rascunho[] = items.map((nota: any) => ({
+        id: nota.id,
+        tomadorNome: nota.tomador?.razaoSocial || nota.tomador?.nome || 'Sem tomador',
+        tomadorCnpjCpf: nota.tomador?.documento || '',
+        servicoDescricao: nota.servico?.descricao || '',
+        valor: nota.valores?.valorTotal || 0,
+        criadoEm: nota.createdAt || nota.criadoEm || new Date().toISOString(),
+        atualizadoEm: nota.updatedAt || nota.atualizadoEm || new Date().toISOString(),
+        competencia: nota.dataCompetencia ? format(parseISO(nota.dataCompetencia), 'MM/yyyy') : '',
+        status: nota.servico?.descricao && nota.valores?.valorTotal ? 'pronto' : 'incompleto',
+        etapa: nota.servico?.descricao ? (nota.valores?.valorTotal ? 3 : 2) : 1,
+        camposFaltando: !nota.servico?.descricao ? ['Descrição do serviço'] : (!nota.valores?.valorTotal ? ['Valor'] : undefined),
+      }));
+      setRascunhos(mapped);
+    } catch (err) {
+      console.error('Erro ao carregar rascunhos:', err);
+      setSnackbar({
+        open: true,
+        message: 'Erro ao carregar rascunhos',
+        severity: 'error',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [page, rowsPerPage]);
+
+  useEffect(() => {
+    fetchRascunhos();
+  }, [fetchRascunhos]);
 
   // Filtro de busca
   const filteredRascunhos = useMemo(() => {
@@ -210,21 +184,19 @@ const RascunhosPage: React.FC = () => {
     handleMenuClose();
   };
 
-  const handleView = (_rascunho: Rascunho) => {
-    // Abre preview do rascunho
-    setSnackbar({
-      open: true,
-      message: 'Abrindo preview do rascunho...',
-      severity: 'info',
-    });
+  const handleView = (rascunho: Rascunho) => {
+    // Navega para o modo de visualização do rascunho
+    navigate(`/notas/emitir?rascunho=${rascunho.id}&view=true`);
     handleMenuClose();
   };
 
   const handleDuplicate = (rascunho: Rascunho) => {
+    // Navega para criar nova nota duplicando o rascunho
+    navigate(`/notas/emitir?duplicar=${rascunho.id}`);
     setSnackbar({
       open: true,
-      message: `Rascunho "${rascunho.tomadorNome}" duplicado com sucesso!`,
-      severity: 'success',
+      message: `Duplicando rascunho "${rascunho.tomadorNome}"...`,
+      severity: 'info',
     });
     handleMenuClose();
   };
@@ -248,20 +220,32 @@ const RascunhosPage: React.FC = () => {
     handleMenuClose();
   };
 
-  const handleDeleteConfirm = () => {
-    if (deleteTarget === 'single' && menuRascunho) {
+  const handleDeleteConfirm = async () => {
+    try {
+      if (deleteTarget === 'single' && menuRascunho) {
+        await notasService.remove(menuRascunho.id);
+        setSnackbar({
+          open: true,
+          message: `Rascunho "${menuRascunho.tomadorNome}" excluído!`,
+          severity: 'success',
+        });
+      } else {
+        // Excluir múltiplos rascunhos
+        await Promise.all(selectedIds.map(id => notasService.remove(id)));
+        setSnackbar({
+          open: true,
+          message: `${selectedIds.length} rascunho(s) excluído(s)!`,
+          severity: 'success',
+        });
+        setSelectedIds([]);
+      }
+      fetchRascunhos(); // Recarregar lista
+    } catch (err: any) {
       setSnackbar({
         open: true,
-        message: `Rascunho "${menuRascunho.tomadorNome}" excluído!`,
-        severity: 'success',
+        message: err.response?.data?.message || 'Erro ao excluir rascunho(s)',
+        severity: 'error',
       });
-    } else {
-      setSnackbar({
-        open: true,
-        message: `${selectedIds.length} rascunho(s) excluído(s)!`,
-        severity: 'success',
-      });
-      setSelectedIds([]);
     }
     setDeleteDialogOpen(false);
   };
@@ -382,15 +366,19 @@ const RascunhosPage: React.FC = () => {
                 </>
               )}
               <Tooltip title="Atualizar lista">
-                <IconButton size="small">
+                <IconButton size="small" onClick={fetchRascunhos} disabled={isLoading}>
                   <Refresh />
                 </IconButton>
               </Tooltip>
             </Box>
           </Box>
 
-          {/* Table */}
-          {filteredRascunhos.length === 0 ? (
+          {/* Loading */}
+          {isLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+              <CircularProgress />
+            </Box>
+          ) : filteredRascunhos.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 8 }}>
               <Description sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
               <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>

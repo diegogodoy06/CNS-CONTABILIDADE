@@ -27,119 +27,13 @@ import {
   PersonAdd,
 } from '@mui/icons-material';
 import type { Tomador } from '../../../types';
+import { consultarCNPJ, validarCNPJ, type DadosCNPJ } from '../../../services/cnpjService';
 
 interface ConsultaCNPJDialogProps {
   open: boolean;
   onClose: () => void;
   onImportar: (dados: Partial<Tomador>) => void;
 }
-
-interface DadosCNPJ {
-  cnpj: string;
-  razaoSocial: string;
-  nomeFantasia?: string;
-  situacao: 'ATIVA' | 'BAIXADA' | 'INAPTA' | 'SUSPENSA';
-  dataAbertura: string;
-  naturezaJuridica: string;
-  cnaePrincipal: {
-    codigo: string;
-    descricao: string;
-  };
-  cnaesSecundarios: Array<{
-    codigo: string;
-    descricao: string;
-  }>;
-  endereco: {
-    logradouro: string;
-    numero: string;
-    complemento?: string;
-    bairro: string;
-    cidade: string;
-    uf: string;
-    cep: string;
-  };
-  telefone?: string;
-  email?: string;
-  capitalSocial?: number;
-  porte?: string;
-  optanteSimplesNacional?: boolean;
-  optanteMei?: boolean;
-}
-
-// Mock de consulta CNPJ
-const mockConsultaCNPJ = async (cnpj: string): Promise<DadosCNPJ | null> => {
-  // Simula delay de rede
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
-  // Remove formatação
-  const cnpjLimpo = cnpj.replace(/\D/g, '');
-  
-  // Mock de dados para alguns CNPJs
-  const mockData: Record<string, DadosCNPJ> = {
-    '12345678000190': {
-      cnpj: '12345678000190',
-      razaoSocial: 'TECH SOLUTIONS LTDA',
-      nomeFantasia: 'Tech Solutions',
-      situacao: 'ATIVA',
-      dataAbertura: '2018-03-15',
-      naturezaJuridica: '206-2 - Sociedade Empresária Limitada',
-      cnaePrincipal: {
-        codigo: '6201-5/01',
-        descricao: 'Desenvolvimento de programas de computador sob encomenda',
-      },
-      cnaesSecundarios: [
-        { codigo: '6202-3/00', descricao: 'Desenvolvimento e licenciamento de programas de computador customizáveis' },
-        { codigo: '6204-0/00', descricao: 'Consultoria em tecnologia da informação' },
-      ],
-      endereco: {
-        logradouro: 'Avenida Paulista',
-        numero: '1000',
-        complemento: 'Sala 501',
-        bairro: 'Bela Vista',
-        cidade: 'São Paulo',
-        uf: 'SP',
-        cep: '01310-100',
-      },
-      telefone: '(11) 3333-4444',
-      email: 'contato@techsolutions.com.br',
-      capitalSocial: 100000,
-      porte: 'PEQUENO',
-      optanteSimplesNacional: true,
-      optanteMei: false,
-    },
-    '98765432000110': {
-      cnpj: '98765432000110',
-      razaoSocial: 'CONSULTORIA ALPHA S.A.',
-      nomeFantasia: 'Alpha Consulting',
-      situacao: 'ATIVA',
-      dataAbertura: '2010-07-22',
-      naturezaJuridica: '205-4 - Sociedade Anônima Fechada',
-      cnaePrincipal: {
-        codigo: '7020-4/00',
-        descricao: 'Atividades de consultoria em gestão empresarial',
-      },
-      cnaesSecundarios: [
-        { codigo: '7490-1/04', descricao: 'Atividades de intermediação e agenciamento de serviços' },
-      ],
-      endereco: {
-        logradouro: 'Rua Augusta',
-        numero: '500',
-        bairro: 'Consolação',
-        cidade: 'São Paulo',
-        uf: 'SP',
-        cep: '01304-000',
-      },
-      telefone: '(11) 2222-3333',
-      email: 'contato@alphaconsulting.com.br',
-      capitalSocial: 500000,
-      porte: 'MEDIO',
-      optanteSimplesNacional: false,
-      optanteMei: false,
-    },
-  };
-  
-  return mockData[cnpjLimpo] || null;
-};
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -167,20 +61,30 @@ const ConsultaCNPJDialog: React.FC<ConsultaCNPJDialogProps> = ({
       return;
     }
 
+    // Validação dos dígitos verificadores
+    if (!validarCNPJ(cnpjLimpo)) {
+      setErro('CNPJ inválido. Verifique os dígitos informados.');
+      return;
+    }
+
     setLoading(true);
     setErro(null);
     setDados(null);
 
     try {
-      const resultado = await mockConsultaCNPJ(cnpj);
+      const resultado = await consultarCNPJ(cnpjLimpo);
       
       if (resultado) {
         setDados(resultado);
       } else {
         setErro('CNPJ não encontrado na base de dados da Receita Federal.');
       }
-    } catch {
-      setErro('Erro ao consultar CNPJ. Tente novamente.');
+    } catch (error) {
+      if (error instanceof Error) {
+        setErro(error.message);
+      } else {
+        setErro('Erro ao consultar CNPJ. Verifique sua conexão e tente novamente.');
+      }
     } finally {
       setLoading(false);
     }

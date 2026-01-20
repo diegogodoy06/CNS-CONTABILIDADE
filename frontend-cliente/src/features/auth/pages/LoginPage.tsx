@@ -158,17 +158,6 @@ const LoginPage: React.FC = () => {
 
     dispatch(loginStart());
     try {
-      const email = data.email.toLowerCase().trim();
-      
-      // Check if 2FA is required
-      const requires2FA = await authService.checkRequires2FA(email);
-      if (requires2FA) {
-        setPendingLoginData(data);
-        setShow2FADialog(true);
-        dispatch(loginFailure('')); // Clear loading state
-        return;
-      }
-      
       const result = await authService.login(data);
       
       // Reset security states on success
@@ -176,9 +165,17 @@ const LoginPage: React.FC = () => {
       setShowCaptcha(false);
       dispatch(loginSuccess(result));
       navigate('/dashboard');
-    } catch (err) {
+    } catch (err: any) {
       const attempts = loginAttempts + 1;
       setLoginAttempts(attempts);
+      
+      // Verificar se é necessário 2FA (backend pode retornar isso como erro)
+      if (err.message?.includes('2FA') || err.response?.data?.requires2FA) {
+        setPendingLoginData(data);
+        setShow2FADialog(true);
+        dispatch(loginFailure('')); // Clear loading state
+        return;
+      }
       
       // Block account after max attempts
       if (attempts >= MAX_ATTEMPTS_BEFORE_BLOCK) {

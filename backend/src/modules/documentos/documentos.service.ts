@@ -11,6 +11,8 @@ import { FilterDocumentoDto } from './dto/filter-documento.dto';
 import { createPaginatedResult } from '../../common/dto/pagination.dto';
 import { Usuario, TipoUsuario, StatusDocumento, Prisma } from '@prisma/client';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
 
 interface FileInfo {
   originalname: string;
@@ -42,7 +44,22 @@ export class DocumentosService {
       .digest('hex');
 
     // Caminho do arquivo (em produção, seria S3, Azure Blob, etc.)
-    const caminhoArquivo = `/uploads/documentos/${dto.empresaId}/${Date.now()}_${file.originalname}`;
+    const nomeArquivoSeguro = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const relativePath = `/uploads/documentos/${dto.empresaId}`;
+    const nomeArquivoFinal = `${Date.now()}_${nomeArquivoSeguro}`;
+    const caminhoArquivo = `${relativePath}/${nomeArquivoFinal}`;
+
+    // Salvar arquivo no disco
+    const absoluteDir = path.join(process.cwd(), relativePath);
+    const absolutePath = path.join(process.cwd(), caminhoArquivo);
+    
+    // Criar diretório se não existir
+    if (!fs.existsSync(absoluteDir)) {
+      fs.mkdirSync(absoluteDir, { recursive: true });
+    }
+    
+    // Salvar o arquivo
+    fs.writeFileSync(absolutePath, file.buffer);
 
     // Calcula versão
     let versao = 1;
@@ -157,7 +174,7 @@ export class DocumentosService {
     ]);
 
     // Converte BigInt para string
-    const itemsFormatted = items.map((item) => ({
+    const itemsFormatted = items.map((item: any) => ({
       ...item,
       tamanhoBytes: item.tamanhoBytes.toString(),
     }));
@@ -339,7 +356,8 @@ export class DocumentosService {
     // Registra acesso de download
     await this.registrarAcesso(documento.id, currentUser.id, 'DOWNLOAD');
 
-    // Em produção, retornaria URL assinada do S3 ou similar
+    // Retorna URL relativa que será servida pelo ServeStaticModule
+    // O frontend deve concatenar com a base URL do backend
     return {
       url: documento.caminhoArquivo,
       nomeArquivo: documento.nomeArquivo,
@@ -405,7 +423,7 @@ export class DocumentosService {
       const empresas = await this.prisma.empresa.findMany({
         select: { id: true },
       });
-      return empresas.map((e) => e.id);
+      return empresas.map((e: any) => e.id);
     }
 
     if (user.tipo === TipoUsuario.CLIENTE) {
@@ -413,7 +431,7 @@ export class DocumentosService {
         where: { usuarioId: user.id, ativo: true },
         select: { empresaId: true },
       });
-      return vinculos.map((v) => v.empresaId);
+      return vinculos.map((v: any) => v.empresaId);
     }
 
     const colaborador = await this.prisma.colaboradorEscritorio.findUnique({
@@ -425,9 +443,54 @@ export class DocumentosService {
         where: { escritorioId: colaborador.escritorioId },
         select: { id: true },
       });
-      return empresas.map((e) => e.id);
+      return empresas.map((e: any) => e.id);
     }
 
     return [];
+  }
+
+  /**
+   * Retorna o histórico de acessos de um documento
+   */
+  async getHistorico(documentoId: string, currentUser: Usuario) {
+    // Verifica se documento existe e usuário tem acesso
+    const documento = await this.prisma.documento.findUnique({
+      where: { id: documentoId },
+      select: { empresaId: true },
+    });
+
+    if (!documento) {
+      throw new NotFoundException('Documento não encontrado');
+    }
+
+    await this.checkEmpresaAccess(documento.empresaId, currentUser);
+
+    // Busca histórico de acessos
+    const acessos = await this.prisma.acessoDocumento.findMany({
+      where: { documentoId },
+      include: {
+        usuario: {
+          select: {
+            id: true,
+            nome: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { criadoEm: 'desc' },
+      take: 100, // Limita a 100 registros
+    });
+
+    return acessos.map((acesso: any) => ({
+      id: acesso.id,
+      acao: acesso.acao,
+      ip: acesso.ip,
+      data: acesso.criadoEm,
+      usuario: {
+        id: acesso.usuario.id,
+        nome: acesso.usuario.nome,
+        email: acesso.usuario.email,
+      },
+    }));
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -28,6 +28,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  CircularProgress,
 } from '@mui/material';
 import {
   PictureAsPdf,
@@ -60,63 +61,9 @@ import {
   Area,
   AreaChart,
 } from 'recharts';
-
-// Mock data para demonstração
-const mockFaturamentoMensal = [
-  { mes: 'Jan', faturamento: 45000, impostos: 6750 },
-  { mes: 'Fev', faturamento: 52000, impostos: 7800 },
-  { mes: 'Mar', faturamento: 48000, impostos: 7200 },
-  { mes: 'Abr', faturamento: 61000, impostos: 9150 },
-  { mes: 'Mai', faturamento: 55000, impostos: 8250 },
-  { mes: 'Jun', faturamento: 67000, impostos: 10050 },
-  { mes: 'Jul', faturamento: 72000, impostos: 10800 },
-  { mes: 'Ago', faturamento: 69000, impostos: 10350 },
-  { mes: 'Set', faturamento: 75000, impostos: 11250 },
-  { mes: 'Out', faturamento: 81000, impostos: 12150 },
-  { mes: 'Nov', faturamento: 78000, impostos: 11700 },
-  { mes: 'Dez', faturamento: 85000, impostos: 12750 },
-];
-
-const mockImpostosPorTipo = [
-  { name: 'ISS', value: 45000, color: '#2196f3' },
-  { name: 'IRPJ', value: 28000, color: '#4caf50' },
-  { name: 'PIS/COFINS', value: 22000, color: '#ff9800' },
-  { name: 'CSLL', value: 15000, color: '#f44336' },
-  { name: 'INSS', value: 18000, color: '#9c27b0' },
-];
-
-const mockTopTomadores = [
-  { id: 1, nome: 'ABC Tecnologia Ltda', cnpj: '12.345.678/0001-90', total: 125000, notas: 24 },
-  { id: 2, nome: 'XYZ Consultoria S.A.', cnpj: '98.765.432/0001-10', total: 98000, notas: 18 },
-  { id: 3, nome: 'Tech Solutions ME', cnpj: '11.222.333/0001-44', total: 76000, notas: 15 },
-  { id: 4, nome: 'Empresa Inovadora', cnpj: '55.666.777/0001-88', total: 54000, notas: 12 },
-  { id: 5, nome: 'Serviços Premium', cnpj: '99.888.777/0001-66', total: 42000, notas: 9 },
-];
-
-const mockNotasPorStatus = [
-  { name: 'Emitidas', value: 156, color: '#4caf50' },
-  { name: 'Canceladas', value: 8, color: '#f44336' },
-  { name: 'Pendentes', value: 12, color: '#ff9800' },
-];
-
-// Mock data para drill-down (notas por mês)
-const mockNotasPorMes: Record<string, { numero: string; tomador: string; valor: number; data: string; status: string }[]> = {
-  'Jan': [
-    { numero: '000001', tomador: 'ABC Tecnologia', valor: 15000, data: '10/01/2025', status: 'emitida' },
-    { numero: '000002', tomador: 'XYZ Consultoria', valor: 12000, data: '15/01/2025', status: 'emitida' },
-    { numero: '000003', tomador: 'Tech Solutions', valor: 18000, data: '20/01/2025', status: 'emitida' },
-  ],
-  'Fev': [
-    { numero: '000004', tomador: 'Empresa Inovadora', valor: 22000, data: '05/02/2025', status: 'emitida' },
-    { numero: '000005', tomador: 'Serviços Premium', valor: 18000, data: '12/02/2025', status: 'emitida' },
-    { numero: '000006', tomador: 'ABC Tecnologia', valor: 12000, data: '25/02/2025', status: 'emitida' },
-  ],
-  'Mar': [
-    { numero: '000007', tomador: 'Nova Cliente', valor: 25000, data: '08/03/2025', status: 'emitida' },
-    { numero: '000008', tomador: 'XYZ Consultoria', valor: 23000, data: '18/03/2025', status: 'cancelada' },
-  ],
-  // ... outros meses teriam dados similares
-};
+import relatoriosService from '../../../services/relatoriosService';
+import { useAppSelector } from '../../../store/hooks';
+import type { RootState } from '../../../store';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -130,8 +77,53 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
   </div>
 );
 
+// Tipos para os dados
+interface FaturamentoMensal {
+  mes: string;
+  faturamento: number;
+  impostos: number;
+}
+
+interface ImpostoPorTipo {
+  name: string;
+  value: number;
+  color: string;
+}
+
+interface TopTomador {
+  id: number;
+  nome: string;
+  cnpj: string;
+  total: number;
+  notas: number;
+}
+
+interface NotaPorStatus {
+  name: string;
+  value: number;
+  color: string;
+}
+
+interface NotaDetalhe {
+  numero: string;
+  tomador: string;
+  valor: number;
+  data: string;
+  status: string;
+}
+
 const RelatoriosPage: React.FC = () => {
   const theme = useTheme();
+  const { company } = useAppSelector((state: RootState) => state.auth);
+  
+  // Estados para dados da API
+  const [faturamentoMensal, setFaturamentoMensal] = useState<FaturamentoMensal[]>([]);
+  const [impostosPorTipo, setImpostosPorTipo] = useState<ImpostoPorTipo[]>([]);
+  const [topTomadores, setTopTomadores] = useState<TopTomador[]>([]);
+  const [notasPorStatus, setNotasPorStatus] = useState<NotaPorStatus[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [tabValue, setTabValue] = useState(0);
   const [periodoSelecionado, setPeriodoSelecionado] = useState('2025');
   const [competencia, setCompetencia] = useState('12/2025');
@@ -141,12 +133,73 @@ const RelatoriosPage: React.FC = () => {
   const [drillDownData, setDrillDownData] = useState<{
     titulo: string;
     mes: string;
-    dados: typeof mockNotasPorMes['Jan'];
+    dados: NotaDetalhe[];
   } | null>(null);
 
   // Refs para exportação PNG
   const chartFaturamentoRef = useRef<HTMLDivElement>(null);
   const chartStatusRef = useRef<HTMLDivElement>(null);
+
+  // Carregar dados da API
+  const fetchDados = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [faturamentoRes, impostosRes, notasRes] = await Promise.all([
+        relatoriosService.getFaturamento({ empresaId: company?.id, ano: parseInt(periodoSelecionado) }),
+        relatoriosService.getImpostos({ empresaId: company?.id, ano: parseInt(periodoSelecionado) }),
+        relatoriosService.getNotasEmitidas({ empresaId: company?.id, ano: parseInt(periodoSelecionado) }),
+      ]);
+      
+      // Mapear dados de faturamento
+      if (faturamentoRes?.mensal) {
+        setFaturamentoMensal(faturamentoRes.mensal.map((item: any) => ({
+          mes: item.mes,
+          faturamento: item.faturamento || 0,
+          impostos: item.impostos || 0,
+        })));
+      }
+      
+      // Mapear dados de impostos por tipo
+      if (impostosRes?.porTipo) {
+        const cores = ['#2196f3', '#4caf50', '#ff9800', '#f44336', '#9c27b0', '#00bcd4'];
+        setImpostosPorTipo(impostosRes.porTipo.map((item: any, index: number) => ({
+          name: item.tipo,
+          value: item.valor || 0,
+          color: cores[index % cores.length],
+        })));
+      }
+      
+      // Mapear top tomadores
+      if (faturamentoRes?.topTomadores) {
+        setTopTomadores(faturamentoRes.topTomadores.map((item: any, index: number) => ({
+          id: index + 1,
+          nome: item.nome || item.razaoSocial,
+          cnpj: item.documento,
+          total: item.faturamento || 0,
+          notas: item.totalNotas || 0,
+        })));
+      }
+      
+      // Mapear notas por status
+      if (notasRes?.porStatus) {
+        setNotasPorStatus([
+          { name: 'Emitidas', value: notasRes.porStatus.emitidas || 0, color: '#4caf50' },
+          { name: 'Canceladas', value: notasRes.porStatus.canceladas || 0, color: '#f44336' },
+          { name: 'Pendentes', value: notasRes.porStatus.pendentes || 0, color: '#ff9800' },
+        ]);
+      }
+    } catch (err: any) {
+      console.error('Erro ao carregar relatórios:', err);
+      setError(err.response?.data?.message || 'Erro ao carregar dados dos relatórios');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [company?.id, periodoSelecionado]);
+
+  useEffect(() => {
+    fetchDados();
+  }, [fetchDados]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -156,13 +209,13 @@ const RelatoriosPage: React.FC = () => {
   };
 
   const totalFaturamento = useMemo(() => 
-    mockFaturamentoMensal.reduce((acc, item) => acc + item.faturamento, 0),
-    []
+    faturamentoMensal.reduce((acc, item) => acc + item.faturamento, 0),
+    [faturamentoMensal]
   );
 
   const totalImpostos = useMemo(() => 
-    mockFaturamentoMensal.reduce((acc, item) => acc + item.impostos, 0),
-    []
+    faturamentoMensal.reduce((acc, item) => acc + item.impostos, 0),
+    [faturamentoMensal]
   );
 
   const handleExportPDF = () => {
@@ -225,21 +278,53 @@ const RelatoriosPage: React.FC = () => {
 
   // Handler para drill-down ao clicar no gráfico
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleBarClick = useCallback((data: any) => {
+  const handleBarClick = useCallback(async (data: any) => {
     if (data?.activePayload?.[0]?.payload) {
       const payload = data.activePayload[0].payload as { mes: string; faturamento: number };
-      const notas = mockNotasPorMes[payload.mes] || [];
-      setDrillDownData({
-        titulo: `Detalhamento - ${payload.mes}/2025`,
-        mes: payload.mes,
-        dados: notas,
-      });
-      setDrillDownOpen(true);
+      try {
+        // Buscar notas do mês via API
+        const mesIndex = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].indexOf(payload.mes) + 1;
+        const notasRes = await relatoriosService.getNotasEmitidas({
+          empresaId: company?.id,
+          mes: mesIndex,
+          ano: parseInt(periodoSelecionado),
+        });
+        
+        const notas = (notasRes?.notas || []).map((n: any) => ({
+          numero: n.numero,
+          tomador: n.tomador?.razaoSocial || n.tomador?.nome || '-',
+          valor: n.valor || 0,
+          data: n.dataEmissao,
+          status: n.status,
+        }));
+        
+        setDrillDownData({
+          titulo: `Detalhamento - ${payload.mes}/${periodoSelecionado}`,
+          mes: payload.mes,
+          dados: notas,
+        });
+        setDrillDownOpen(true);
+      } catch (err) {
+        console.error('Erro ao carregar notas do mês:', err);
+      }
     }
-  }, []);
+  }, [company?.id, periodoSelecionado]);
 
   return (
     <Box>
+      {/* Loading e Error */}
+      {isLoading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      )}
+      
+      {error && (
+        <Box sx={{ mb: 3, p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
+          <Typography color="error">{error}</Typography>
+        </Box>
+      )}
+
       {/* Header */}
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2 }}>
         <Box>
@@ -478,7 +563,7 @@ const RelatoriosPage: React.FC = () => {
                 </Box>
                 <Box sx={{ height: 350 }} ref={chartFaturamentoRef}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={mockFaturamentoMensal}>
+                    <AreaChart data={faturamentoMensal}>
                       <defs>
                         <linearGradient id="colorFaturamento" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor={theme.palette.primary.main} stopOpacity={0.3}/>
@@ -549,7 +634,7 @@ const RelatoriosPage: React.FC = () => {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={mockNotasPorStatus}
+                        data={notasPorStatus}
                         cx="50%"
                         cy="50%"
                         innerRadius={60}
@@ -557,7 +642,7 @@ const RelatoriosPage: React.FC = () => {
                         paddingAngle={5}
                         dataKey="value"
                       >
-                        {mockNotasPorStatus.map((entry, index) => (
+                        {notasPorStatus.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
@@ -586,7 +671,7 @@ const RelatoriosPage: React.FC = () => {
             {/* Gráfico de Barras - Clique para drill-down */}
             <Box sx={{ height: 400, mb: 4 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mockFaturamentoMensal} onClick={handleBarClick}>
+                <BarChart data={faturamentoMensal} onClick={handleBarClick}>
                   <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
                   <XAxis dataKey="mes" stroke={theme.palette.text.secondary} />
                   <YAxis 
@@ -628,15 +713,15 @@ const RelatoriosPage: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {mockFaturamentoMensal.map((row) => (
+                  {faturamentoMensal.map((row) => (
                     <TableRow key={row.mes} hover>
-                      <TableCell>{row.mes}/2025</TableCell>
+                      <TableCell>{row.mes}/{periodoSelecionado}</TableCell>
                       <TableCell align="right">{formatCurrency(row.faturamento)}</TableCell>
                       <TableCell align="right">{formatCurrency(row.impostos)}</TableCell>
                       <TableCell align="right">{formatCurrency(row.faturamento - row.impostos)}</TableCell>
                       <TableCell align="right">
                         <Chip 
-                          label={`${((row.impostos / row.faturamento) * 100).toFixed(1)}%`}
+                          label={row.faturamento > 0 ? `${((row.impostos / row.faturamento) * 100).toFixed(1)}%` : '0%'}
                           size="small"
                           color="warning"
                           variant="outlined"
@@ -687,14 +772,14 @@ const RelatoriosPage: React.FC = () => {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={mockImpostosPorTipo}
+                        data={impostosPorTipo}
                         cx="50%"
                         cy="50%"
                         outerRadius={120}
                         dataKey="value"
                         label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                       >
-                        {mockImpostosPorTipo.map((entry, index) => (
+                        {impostosPorTipo.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
@@ -726,7 +811,7 @@ const RelatoriosPage: React.FC = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {mockImpostosPorTipo.map((imposto) => (
+                      {impostosPorTipo.map((imposto) => (
                         <TableRow key={imposto.name} hover>
                           <TableCell>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -743,14 +828,14 @@ const RelatoriosPage: React.FC = () => {
                           </TableCell>
                           <TableCell align="right">{formatCurrency(imposto.value)}</TableCell>
                           <TableCell align="right">
-                            {((imposto.value / mockImpostosPorTipo.reduce((a, b) => a + b.value, 0)) * 100).toFixed(1)}%
+                            {impostosPorTipo.length > 0 ? ((imposto.value / impostosPorTipo.reduce((a, b) => a + b.value, 0)) * 100).toFixed(1) : 0}%
                           </TableCell>
                         </TableRow>
                       ))}
                       <TableRow sx={{ bgcolor: 'grey.100' }}>
                         <TableCell sx={{ fontWeight: 700 }}>TOTAL</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 700 }}>
-                          {formatCurrency(mockImpostosPorTipo.reduce((a, b) => a + b.value, 0))}
+                          {formatCurrency(impostosPorTipo.reduce((a, b) => a + b.value, 0))}
                         </TableCell>
                         <TableCell align="right" sx={{ fontWeight: 700 }}>100%</TableCell>
                       </TableRow>
@@ -787,7 +872,7 @@ const RelatoriosPage: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {mockTopTomadores.map((tomador, index) => (
+                  {topTomadores.map((tomador, index) => (
                     <TableRow key={tomador.id} hover>
                       <TableCell>
                         <Chip 
@@ -817,7 +902,7 @@ const RelatoriosPage: React.FC = () => {
               <Box sx={{ height: 300 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={mockTopTomadores}
+                    data={topTomadores}
                     layout="vertical"
                     margin={{ left: 150 }}
                   >

@@ -88,7 +88,7 @@ export class LocalidadesService {
       take: limit,
     });
 
-    return municipios.map((m) => ({
+    return municipios.map((m: any) => ({
       codigo: m.codigo,
       nome: m.nome,
       nomeCompleto: `${m.nome} - ${m.estado.sigla}`,

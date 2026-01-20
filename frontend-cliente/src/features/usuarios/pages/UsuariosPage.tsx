@@ -56,94 +56,8 @@ import {
   History as HistoryIcon,
   Warning as WarningIcon,
 } from '@mui/icons-material';
-
-interface Usuario {
-  id: string;
-  nome: string;
-  email: string;
-  cpf: string;
-  perfil: 'admin' | 'operador' | 'visualizador';
-  ativo: boolean;
-  ultimoAcesso: string | null;
-  convitePendente: boolean;
-  criadoEm: string;
-  deletedAt?: string | null; // Soft delete timestamp
-  deletedBy?: string | null; // Quem excluiu
-}
-
-// Mock data
-const MOCK_USUARIOS: Usuario[] = [
-  {
-    id: '1',
-    nome: 'João da Silva',
-    email: 'joao@empresa.com.br',
-    cpf: '123.456.789-00',
-    perfil: 'admin',
-    ativo: true,
-    ultimoAcesso: '2025-01-10T14:30:00',
-    convitePendente: false,
-    criadoEm: '2024-06-15T10:00:00',
-  },
-  {
-    id: '2',
-    nome: 'Maria Santos',
-    email: 'maria@empresa.com.br',
-    cpf: '987.654.321-00',
-    perfil: 'operador',
-    ativo: true,
-    ultimoAcesso: '2025-01-09T09:15:00',
-    convitePendente: false,
-    criadoEm: '2024-08-20T14:00:00',
-  },
-  {
-    id: '3',
-    nome: 'Carlos Oliveira',
-    email: 'carlos@empresa.com.br',
-    cpf: '456.789.123-00',
-    perfil: 'visualizador',
-    ativo: true,
-    ultimoAcesso: '2025-01-08T16:45:00',
-    convitePendente: false,
-    criadoEm: '2024-10-05T08:30:00',
-  },
-  {
-    id: '4',
-    nome: 'Ana Paula',
-    email: 'ana@empresa.com.br',
-    cpf: '789.123.456-00',
-    perfil: 'operador',
-    ativo: false,
-    ultimoAcesso: '2024-12-20T11:00:00',
-    convitePendente: false,
-    criadoEm: '2024-07-10T09:00:00',
-  },
-  {
-    id: '5',
-    nome: 'Pedro Henrique',
-    email: 'pedro@empresa.com.br',
-    cpf: '321.654.987-00',
-    perfil: 'visualizador',
-    ativo: true,
-    ultimoAcesso: null,
-    convitePendente: true,
-    criadoEm: '2025-01-05T15:00:00',
-    deletedAt: null,
-    deletedBy: null,
-  },
-  {
-    id: '6',
-    nome: 'Roberto Lima',
-    email: 'roberto@empresa.com.br',
-    cpf: '654.987.321-00',
-    perfil: 'operador',
-    ativo: false,
-    ultimoAcesso: '2024-11-15T10:30:00',
-    convitePendente: false,
-    criadoEm: '2024-05-20T08:00:00',
-    deletedAt: '2025-01-08T14:30:00',
-    deletedBy: 'João da Silva',
-  },
-];
+import usuariosService, { Usuario } from '../../../services/usuariosService';
+import { useState, useEffect, useCallback } from 'react';
 
 const PERFIS = {
   admin: { label: 'Administrador', color: 'error' as const, icon: <AdminIcon fontSize="small" /> },
@@ -181,7 +95,9 @@ const EMPRESA_ATUAL = {
 };
 
 export default function UsuariosPage() {
-  const [usuarios, setUsuarios] = useState<Usuario[]>(MOCK_USUARIOS);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [usuarioSelecionado, setUsuarioSelecionado] = useState<Usuario | null>(null);
@@ -201,6 +117,25 @@ export default function UsuariosPage() {
     perfil: 'operador' as 'admin' | 'operador' | 'visualizador',
   });
 
+  // Buscar usuários da API
+  const fetchUsuarios = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await usuariosService.findAll({ search: busca });
+      setUsuarios(response.items || []);
+    } catch (err: any) {
+      console.error('Erro ao carregar usuários:', err);
+      setError(err.response?.data?.message || 'Erro ao carregar usuários');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [busca]);
+
+  useEffect(() => {
+    fetchUsuarios();
+  }, [fetchUsuarios]);
+
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, usuario: Usuario) => {
     setAnchorEl(event.currentTarget);
     setUsuarioSelecionado(usuario);
@@ -215,19 +150,20 @@ export default function UsuariosPage() {
     setDialogConvite(true);
   };
 
-  const handleEnviarConvite = () => {
-    // Simula envio de convite
-    const novoId = (usuarios.length + 1).toString();
-    const novo: Usuario = {
-      id: novoId,
-      ...novoUsuario,
-      ativo: true,
-      ultimoAcesso: null,
-      convitePendente: true,
-      criadoEm: new Date().toISOString(),
-    };
-    setUsuarios([...usuarios, novo]);
-    setLinkConvite(`https://app.cnscontabilidade.com.br/convite/${novoId}`);
+  const handleEnviarConvite = async () => {
+    try {
+      await usuariosService.create({
+        nome: novoUsuario.nome,
+        email: novoUsuario.email,
+        cpf: novoUsuario.cpf,
+        perfil: novoUsuario.perfil,
+      });
+      setLinkConvite('Convite enviado com sucesso!');
+      fetchUsuarios();
+    } catch (err: any) {
+      console.error('Erro ao enviar convite:', err);
+      setError(err.response?.data?.message || 'Erro ao enviar convite');
+    }
   };
 
   const handleFecharConvite = () => {
@@ -248,25 +184,34 @@ export default function UsuariosPage() {
     }
   };
 
-  const handleSalvarEdicao = () => {
-    if (usuarioSelecionado) {
-      setUsuarios(usuarios.map(u => 
-        u.id === usuarioSelecionado.id 
-          ? { ...u, ...novoUsuario }
-          : u
-      ));
+  const handleSalvarEdicao = async () => {
+    if (!usuarioSelecionado) return;
+    
+    try {
+      await usuariosService.update(usuarioSelecionado.id, {
+        nome: novoUsuario.nome,
+        email: novoUsuario.email,
+        cpf: novoUsuario.cpf,
+        perfil: novoUsuario.perfil,
+      });
       setDialogEditar(false);
+      fetchUsuarios();
+    } catch (err: any) {
+      console.error('Erro ao atualizar usuário:', err);
+      setError(err.response?.data?.message || 'Erro ao atualizar usuário');
     }
   };
 
-  const handleToggleAtivo = () => {
+  const handleToggleAtivo = async () => {
     handleMenuClose();
-    if (usuarioSelecionado) {
-      setUsuarios(usuarios.map(u =>
-        u.id === usuarioSelecionado.id
-          ? { ...u, ativo: !u.ativo }
-          : u
-      ));
+    if (!usuarioSelecionado) return;
+    
+    try {
+      await usuariosService.toggleAtivo(usuarioSelecionado.id, !usuarioSelecionado.ativo);
+      fetchUsuarios();
+    } catch (err: any) {
+      console.error('Erro ao alterar status:', err);
+      setError(err.response?.data?.message || 'Erro ao alterar status');
     }
   };
 
@@ -276,20 +221,17 @@ export default function UsuariosPage() {
   };
 
   // Soft delete - marca como excluído mas mantém no banco
-  const handleConfirmarExclusao = () => {
-    if (usuarioSelecionado) {
-      setUsuarios(usuarios.map(u =>
-        u.id === usuarioSelecionado.id
-          ? { 
-              ...u, 
-              deletedAt: new Date().toISOString(),
-              deletedBy: 'Usuário Atual', // Em produção, viria do contexto de auth
-              ativo: false,
-            }
-          : u
-      ));
+  const handleConfirmarExclusao = async () => {
+    if (!usuarioSelecionado) return;
+    
+    try {
+      await usuariosService.remove(usuarioSelecionado.id);
       setDialogExcluir(false);
       setUsuarioSelecionado(null);
+      fetchUsuarios();
+    } catch (err: any) {
+      console.error('Erro ao excluir usuário:', err);
+      setError(err.response?.data?.message || 'Erro ao excluir usuário');
     }
   };
 
@@ -299,41 +241,51 @@ export default function UsuariosPage() {
     setDialogRestaurar(true);
   };
 
-  const handleConfirmarRestauracao = () => {
-    if (usuarioSelecionado) {
-      setUsuarios(usuarios.map(u =>
-        u.id === usuarioSelecionado.id
-          ? { 
-              ...u, 
-              deletedAt: null,
-              deletedBy: null,
-              ativo: true,
-            }
-          : u
-      ));
+  const handleConfirmarRestauracao = async () => {
+    if (!usuarioSelecionado) return;
+    
+    try {
+      await usuariosService.restore(usuarioSelecionado.id);
       setDialogRestaurar(false);
       setUsuarioSelecionado(null);
+      fetchUsuarios();
+    } catch (err: any) {
+      console.error('Erro ao restaurar usuário:', err);
+      setError(err.response?.data?.message || 'Erro ao restaurar usuário');
     }
   };
 
-  // Exclusão permanente (hard delete)
+  // Exclusão permanente (hard delete) - normalmente não disponível no frontend
   const handleExcluirPermanente = () => {
     handleMenuClose();
     setDialogExcluirPermanente(true);
   };
 
-  const handleConfirmarExclusaoPermanente = () => {
-    if (usuarioSelecionado) {
-      setUsuarios(usuarios.filter(u => u.id !== usuarioSelecionado.id));
+  const handleConfirmarExclusaoPermanente = async () => {
+    if (!usuarioSelecionado) return;
+    
+    try {
+      await usuariosService.remove(usuarioSelecionado.id);
       setDialogExcluirPermanente(false);
       setUsuarioSelecionado(null);
+      fetchUsuarios();
+    } catch (err: any) {
+      console.error('Erro ao excluir permanentemente:', err);
+      setError(err.response?.data?.message || 'Erro ao excluir permanentemente');
     }
   };
 
-  const handleReenviarConvite = () => {
+  const handleReenviarConvite = async () => {
     handleMenuClose();
-    // Simula reenvio
-    alert('Convite reenviado com sucesso!');
+    if (!usuarioSelecionado) return;
+    
+    try {
+      await usuariosService.reenviarConvite(usuarioSelecionado.id);
+      alert('Convite reenviado com sucesso!');
+    } catch (err: any) {
+      console.error('Erro ao reenviar convite:', err);
+      setError(err.response?.data?.message || 'Erro ao reenviar convite');
+    }
   };
 
   const usuariosFiltrados = usuarios.filter(u => {

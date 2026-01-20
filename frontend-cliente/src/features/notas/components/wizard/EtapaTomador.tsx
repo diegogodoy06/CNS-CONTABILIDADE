@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -25,6 +25,7 @@ import {
   ListItemSecondaryAction,
   alpha,
   useTheme,
+  CircularProgress,
 } from '@mui/material';
 import {
   Search,
@@ -37,106 +38,7 @@ import {
   Star,
 } from '@mui/icons-material';
 import type { Tomador } from '../../../../types';
-
-// Mock de tomadores (mesmo do TomadoresPage)
-const mockTomadores: Tomador[] = [
-  {
-    id: '1',
-    tipo: 'pj',
-    documento: '12345678000190',
-    razaoSocial: 'Tech Solutions LTDA',
-    nomeFantasia: 'TechSol',
-    inscricaoMunicipal: '12345678',
-    endereco: {
-      cep: '01310100',
-      logradouro: 'Av Paulista',
-      numero: '1000',
-      bairro: 'Bela Vista',
-      cidade: 'São Paulo',
-      uf: 'SP',
-      codigoMunicipio: '3550308',
-    },
-    email: 'contato@techsolutions.com.br',
-    telefone: '(11) 99999-0001',
-    ativo: true,
-    totalNotas: 15,
-    faturamentoTotal: 67500,
-    createdAt: '2024-01-15T10:00:00',
-    updatedAt: '2024-12-01T14:30:00',
-  },
-  {
-    id: '2',
-    tipo: 'pj',
-    documento: '98765432000110',
-    razaoSocial: 'Consultoria Alpha S.A',
-    nomeFantasia: 'Alpha',
-    inscricaoMunicipal: '87654321',
-    endereco: {
-      cep: '04543011',
-      logradouro: 'Av Faria Lima',
-      numero: '2000',
-      bairro: 'Itaim Bibi',
-      cidade: 'São Paulo',
-      uf: 'SP',
-      codigoMunicipio: '3550308',
-    },
-    email: 'financeiro@alpha.com.br',
-    telefone: '(11) 99999-0002',
-    ativo: true,
-    totalNotas: 8,
-    faturamentoTotal: 32000,
-    createdAt: '2024-03-20T09:00:00',
-    updatedAt: '2024-11-15T11:00:00',
-  },
-  {
-    id: '3',
-    tipo: 'pf',
-    documento: '12345678901',
-    nome: 'João Carlos Silva',
-    endereco: {
-      cep: '01310100',
-      logradouro: 'Rua Augusta',
-      numero: '500',
-      bairro: 'Consolação',
-      cidade: 'São Paulo',
-      uf: 'SP',
-      codigoMunicipio: '3550308',
-    },
-    email: 'joao.silva@email.com',
-    telefone: '(11) 98888-0003',
-    ativo: true,
-    totalNotas: 3,
-    faturamentoTotal: 2550,
-    createdAt: '2024-06-01T14:00:00',
-    updatedAt: '2024-12-05T16:00:00',
-  },
-  {
-    id: '4',
-    tipo: 'pj',
-    documento: '55566677000188',
-    razaoSocial: 'Startup Digital ME',
-    nomeFantasia: 'DigiStart',
-    endereco: {
-      cep: '04547004',
-      logradouro: 'Rua Funchal',
-      numero: '418',
-      bairro: 'Vila Olímpia',
-      cidade: 'São Paulo',
-      uf: 'SP',
-      codigoMunicipio: '3550308',
-    },
-    email: 'contato@digistart.com.br',
-    telefone: '(11) 97777-0004',
-    ativo: true,
-    totalNotas: 5,
-    faturamentoTotal: 12500,
-    createdAt: '2024-05-10T08:00:00',
-    updatedAt: '2024-12-08T10:00:00',
-  },
-];
-
-// Últimos tomadores utilizados (simulação)
-const ultimosTomadores = mockTomadores.slice(0, 3);
+import tomadoresService from '../../../../services/tomadoresService';
 
 interface EtapaTomadorProps {
   tomadorSelecionado: Tomador | null;
@@ -160,9 +62,31 @@ const EtapaTomador: React.FC<EtapaTomadorProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [showAllTomadores, setShowAllTomadores] = useState(false);
   const [novoTomadorOpen, setNovoTomadorOpen] = useState(false);
+  const [tomadores, setTomadores] = useState<Tomador[]>([]);
+  const [ultimosTomadores, setUltimosTomadores] = useState<Tomador[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Buscar tomadores da API
+  const fetchTomadores = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await tomadoresService.findAll({ limit: 50 });
+      setTomadores(response.items || []);
+      // Últimos tomadores são os 3 primeiros (ordenados por última nota)
+      setUltimosTomadores((response.items || []).slice(0, 3));
+    } catch (err) {
+      console.error('Erro ao carregar tomadores:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTomadores();
+  }, [fetchTomadores]);
 
   // Filtrar tomadores pela busca
-  const filteredTomadores = mockTomadores.filter((t) => {
+  const filteredTomadores = tomadores.filter((t) => {
     const search = searchTerm.toLowerCase();
     return (
       t.documento.includes(search) ||
@@ -181,6 +105,14 @@ const EtapaTomador: React.FC<EtapaTomadorProps> = ({
   const handleRemoveTomador = () => {
     onSelectTomador(null);
   };
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box>

@@ -127,7 +127,7 @@ export class AuditoriaService {
 
     return {
       totalLogs,
-      acoesPorTipo: acoesPorTipo.map((a) => ({
+      acoesPorTipo: acoesPorTipo.map((a: any) => ({
         acao: a.acao,
         total: a._count.acao,
       })),

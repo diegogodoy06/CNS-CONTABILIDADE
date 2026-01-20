@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -26,6 +26,7 @@ import {
   alpha,
   useTheme,
   Tooltip,
+  CircularProgress,
 } from '@mui/material';
 import {
   Close,
@@ -54,6 +55,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Tomador, NotaFiscal } from '../../../types';
+import notasService from '../../../services/notasService';
 
 interface HistoricoTomadorDialogProps {
   open: boolean;
@@ -78,74 +80,6 @@ const formatCPF = (cpf: string) => {
   return numeros.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
 };
 
-// Mock de notas do tomador
-const mockNotasTomador: NotaFiscal[] = [
-  {
-    id: '1',
-    numero: 1023,
-    serie: '1',
-    tipo: 'nfse',
-    status: 'emitida',
-    tomador: {} as Tomador,
-    servico: { descricao: 'Desenvolvimento de Software', cnae: '6201501', codigoTributacaoMunicipal: '1.01' },
-    valores: { valorServico: 4500, baseCalculo: 4500, valorLiquido: 4275 },
-    tributos: { iss: { aliquota: 5, valor: 225, retido: false, exigibilidade: 'normal' } },
-    dataEmissao: '2024-12-10',
-    dataCompetencia: '12/2024',
-    localPrestacao: { municipio: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
-    protocoloPrefeitura: 'SP2024121000001',
-    codigoVerificacao: 'ABC123',
-    createdAt: '2024-12-10T10:30:00',
-    updatedAt: '2024-12-10T10:30:00',
-  },
-  {
-    id: '2',
-    numero: 1018,
-    serie: '1',
-    tipo: 'nfse',
-    status: 'emitida',
-    tomador: {} as Tomador,
-    servico: { descricao: 'Consultoria em TI', cnae: '6204000', codigoTributacaoMunicipal: '1.05' },
-    valores: { valorServico: 3200, baseCalculo: 3200, valorLiquido: 3040 },
-    tributos: { iss: { aliquota: 5, valor: 160, retido: false, exigibilidade: 'normal' } },
-    dataEmissao: '2024-11-25',
-    dataCompetencia: '11/2024',
-    localPrestacao: { municipio: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
-    protocoloPrefeitura: 'SP2024112500002',
-    codigoVerificacao: 'DEF456',
-    createdAt: '2024-11-25T14:20:00',
-    updatedAt: '2024-11-25T14:20:00',
-  },
-  {
-    id: '3',
-    numero: 1010,
-    serie: '1',
-    tipo: 'nfse',
-    status: 'emitida',
-    tomador: {} as Tomador,
-    servico: { descricao: 'Manutenção de Sistemas', cnae: '6201501', codigoTributacaoMunicipal: '1.01' },
-    valores: { valorServico: 2800, baseCalculo: 2800, valorLiquido: 2660 },
-    tributos: { iss: { aliquota: 5, valor: 140, retido: false, exigibilidade: 'normal' } },
-    dataEmissao: '2024-10-15',
-    dataCompetencia: '10/2024',
-    localPrestacao: { municipio: 'São Paulo', uf: 'SP', codigoMunicipio: '3550308' },
-    protocoloPrefeitura: 'SP2024101500003',
-    codigoVerificacao: 'GHI789',
-    createdAt: '2024-10-15T09:00:00',
-    updatedAt: '2024-10-15T09:00:00',
-  },
-];
-
-// Mock de dados para gráfico
-const mockDadosGrafico = [
-  { mes: 'Jul', valor: 0, notas: 0 },
-  { mes: 'Ago', valor: 1500, notas: 1 },
-  { mes: 'Set', valor: 0, notas: 0 },
-  { mes: 'Out', valor: 2800, notas: 1 },
-  { mes: 'Nov', valor: 3200, notas: 1 },
-  { mes: 'Dez', valor: 4500, notas: 1 },
-];
-
 interface TabPanelProps {
   children?: React.ReactNode;
   value: number;
@@ -158,6 +92,12 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
   </Box>
 );
 
+interface DadoGrafico {
+  mes: string;
+  valor: number;
+  notas: number;
+}
+
 const HistoricoTomadorDialog: React.FC<HistoricoTomadorDialogProps> = ({
   open,
   onClose,
@@ -165,20 +105,74 @@ const HistoricoTomadorDialog: React.FC<HistoricoTomadorDialogProps> = ({
 }) => {
   const theme = useTheme();
   const [tabValue, setTabValue] = useState(0);
+  const [notas, setNotas] = useState<NotaFiscal[]>([]);
+  const [dadosGrafico, setDadosGrafico] = useState<DadoGrafico[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Carregar dados do tomador
+  const fetchDados = useCallback(async () => {
+    if (!tomador || !open) return;
+    
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await notasService.findAll({
+        tomadorId: tomador.id,
+        limit: 50,
+      });
+      
+      const notasData = response.items || [];
+      setNotas(notasData);
+      
+      // Calcular dados do gráfico (últimos 6 meses)
+      const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+      const agora = new Date();
+      const grafico: DadoGrafico[] = [];
+      
+      for (let i = 5; i >= 0; i--) {
+        const data = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
+        const mesIndex = data.getMonth();
+        const ano = data.getFullYear();
+        
+        const notasDoMes = notasData.filter((n: NotaFiscal) => {
+          const dataNota = parseISO(n.dataEmissao);
+          return dataNota.getMonth() === mesIndex && dataNota.getFullYear() === ano;
+        });
+        
+        grafico.push({
+          mes: meses[mesIndex],
+          valor: notasDoMes.reduce((sum: number, n: NotaFiscal) => sum + (n.valores?.valorServico || 0), 0),
+          notas: notasDoMes.length,
+        });
+      }
+      
+      setDadosGrafico(grafico);
+    } catch (err: any) {
+      console.error('Erro ao carregar histórico:', err);
+      setError(err.response?.data?.message || 'Erro ao carregar histórico');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [tomador, open]);
+
+  useEffect(() => {
+    fetchDados();
+  }, [fetchDados]);
 
   if (!tomador) {
     return null;
   }
 
   // Calcular estatísticas
-  const totalNotas = mockNotasTomador.length;
-  const faturamentoTotal = mockNotasTomador.reduce((sum, n) => sum + n.valores.valorServico, 0);
+  const totalNotas = notas.length;
+  const faturamentoTotal = notas.reduce((sum, n) => sum + (n.valores?.valorServico || 0), 0);
   const ticketMedio = totalNotas > 0 ? faturamentoTotal / totalNotas : 0;
-  const ultimaNota = mockNotasTomador[0];
+  const ultimaNota = notas[0];
   
   // Calcular variação
-  const faturamentoMesAtual = mockDadosGrafico[mockDadosGrafico.length - 1].valor;
-  const faturamentoMesAnterior = mockDadosGrafico[mockDadosGrafico.length - 2].valor;
+  const faturamentoMesAtual = dadosGrafico.length > 0 ? dadosGrafico[dadosGrafico.length - 1].valor : 0;
+  const faturamentoMesAnterior = dadosGrafico.length > 1 ? dadosGrafico[dadosGrafico.length - 2].valor : 0;
   const variacao = faturamentoMesAnterior > 0 
     ? ((faturamentoMesAtual - faturamentoMesAnterior) / faturamentoMesAnterior) * 100 
     : 0;
@@ -348,7 +342,7 @@ const HistoricoTomadorDialog: React.FC<HistoricoTomadorDialogProps> = ({
                 </Typography>
                 <Box sx={{ height: 250 }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={mockDadosGrafico}>
+                    <AreaChart data={dadosGrafico}>
                       <defs>
                         <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor={theme.palette.primary.main} stopOpacity={0.3}/>
@@ -465,7 +459,7 @@ const HistoricoTomadorDialog: React.FC<HistoricoTomadorDialogProps> = ({
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {mockNotasTomador.slice(0, 3).map((nota) => (
+                      {notas.slice(0, 3).map((nota) => (
                         <TableRow key={nota.id} hover>
                           <TableCell>
                             <Typography variant="body2" fontWeight={500}>
@@ -519,7 +513,7 @@ const HistoricoTomadorDialog: React.FC<HistoricoTomadorDialogProps> = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {mockNotasTomador.map((nota) => (
+                {notas.map((nota) => (
                   <TableRow key={nota.id} hover>
                     <TableCell>
                       <Typography variant="body2" fontWeight={600}>

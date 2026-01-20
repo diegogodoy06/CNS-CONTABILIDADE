@@ -24,6 +24,8 @@ import {
   InsertDriveFile,
   Description,
 } from '@mui/icons-material';
+import type { DocumentCategory } from '../../../types';
+import documentosService from '../../../services/documentosService';
 
 interface UploadFile {
   id: string;
@@ -39,6 +41,8 @@ interface FileUploadZoneProps {
   acceptedTypes?: string[];
   multiple?: boolean;
   disabled?: boolean;
+  empresaId?: string;
+  categoria?: DocumentCategory;
 }
 
 const DEFAULT_ACCEPTED_TYPES = [
@@ -78,6 +82,8 @@ const FileUploadZone: React.FC<FileUploadZoneProps> = ({
   acceptedTypes = DEFAULT_ACCEPTED_TYPES,
   multiple = true,
   disabled = false,
+  empresaId,
+  categoria = 'operacional',
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
@@ -131,12 +137,12 @@ const FileUploadZone: React.FC<FileUploadZoneProps> = ({
     
     if (validFiles.length > 0) {
       setUploadFiles(prev => [...prev, ...validFiles]);
-      simulateUpload(validFiles);
+      performUpload(validFiles);
     }
   }, [validateFile]);
 
-  const simulateUpload = async (files: UploadFile[]) => {
-    const filesToUpload: File[] = [];
+  const performUpload = async (files: UploadFile[]) => {
+    const uploadedFiles: File[] = [];
 
     for (const uploadFile of files) {
       // Update status to uploading
@@ -146,32 +152,61 @@ const FileUploadZone: React.FC<FileUploadZoneProps> = ({
         )
       );
 
-      // Simulate progress
-      for (let progress = 0; progress <= 100; progress += 10) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+      try {
+        // Realizar upload real se tiver empresaId
+        if (empresaId) {
+          await documentosService.upload(
+            uploadFile.file,
+            {
+              empresaId,
+              tipo: categoria,
+              titulo: uploadFile.file.name.replace(/\.[^/.]+$/, ''), // Remove extensão para título
+            },
+            (progress) => {
+              setUploadFiles(prev =>
+                prev.map(f =>
+                  f.id === uploadFile.id ? { ...f, progress } : f
+                )
+              );
+            }
+          );
+        } else {
+          // Simulação de progresso se não tiver empresaId
+          for (let progress = 0; progress <= 100; progress += 10) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+            setUploadFiles(prev =>
+              prev.map(f =>
+                f.id === uploadFile.id ? { ...f, progress } : f
+              )
+            );
+          }
+        }
+
+        // Mark as success
         setUploadFiles(prev =>
           prev.map(f =>
-            f.id === uploadFile.id ? { ...f, progress } : f
+            f.id === uploadFile.id ? { ...f, status: 'success', progress: 100 } : f
+          )
+        );
+
+        uploadedFiles.push(uploadFile.file);
+      } catch (error: any) {
+        // Mark as error
+        setUploadFiles(prev =>
+          prev.map(f =>
+            f.id === uploadFile.id 
+              ? { ...f, status: 'error', errorMessage: error.response?.data?.message || 'Erro ao fazer upload' } 
+              : f
           )
         );
       }
-
-      // Mark as success
-      setUploadFiles(prev =>
-        prev.map(f =>
-          f.id === uploadFile.id ? { ...f, status: 'success', progress: 100 } : f
-        )
-      );
-
-      filesToUpload.push(uploadFile.file);
     }
 
-    // Call onUpload with all valid files
-    if (filesToUpload.length > 0) {
-      onUpload(filesToUpload);
+    // Call onUpload with all successfully uploaded files
+    if (uploadedFiles.length > 0) {
+      onUpload(uploadedFiles);
     }
   };
-
   const handleDragEnter = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -350,6 +385,7 @@ const FileUploadZone: React.FC<FileUploadZoneProps> = ({
                 </ListItemIcon>
 
                 <ListItemText
+                  disableTypography
                   primary={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -21,6 +21,7 @@ import {
   useTheme,
   alpha,
   Divider,
+  CircularProgress,
 
 } from '@mui/material';
 import {
@@ -40,101 +41,27 @@ import {
 import { format, parseISO, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Document as DocType } from '../../../types';
+import documentosService from '../../../services/documentosService';
 
-// Tipos para o histórico de acessos
+// Tipo para log de acesso (replicado do documentosService)
 interface AcessoLog {
   id: string;
-  documentoId: string;
-  documentoNome: string;
-  usuarioId: string;
-  usuarioNome: string;
-  usuarioAvatar?: string;
-  acao: 'visualizar' | 'download' | 'compartilhar' | 'editar' | 'excluir' | 'upload';
-  dataHora: string;
-  ip?: string;
-  dispositivo?: string;
-  detalhes?: string;
+  acao: string;
+  usuario: string;
+  data: string;
+  ip: string;
 }
 
-// Mock data para histórico de acessos
-const mockAcessosLog: AcessoLog[] = [
-  {
-    id: '1',
-    documentoId: '1',
-    documentoNome: 'Contrato_Social_Consolidado.pdf',
-    usuarioId: 'user1',
-    usuarioNome: 'João Silva',
-    acao: 'visualizar',
-    dataHora: new Date().toISOString(),
-    ip: '192.168.1.100',
-    dispositivo: 'Chrome - Windows',
-  },
-  {
-    id: '2',
-    documentoId: '1',
-    documentoNome: 'Contrato_Social_Consolidado.pdf',
-    usuarioId: 'user2',
-    usuarioNome: 'Maria Souza',
-    acao: 'download',
-    dataHora: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    ip: '192.168.1.105',
-    dispositivo: 'Safari - macOS',
-  },
-  {
-    id: '3',
-    documentoId: '2',
-    documentoNome: 'Balanço_Patrimonial_2024.xlsx',
-    usuarioId: 'user1',
-    usuarioNome: 'João Silva',
-    acao: 'compartilhar',
-    dataHora: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    ip: '192.168.1.100',
-    dispositivo: 'Chrome - Windows',
-    detalhes: 'Compartilhado com contador@empresa.com.br',
-  },
-  {
-    id: '4',
-    documentoId: '3',
-    documentoNome: 'DAS_Novembro_2024.pdf',
-    usuarioId: 'contador1',
-    usuarioNome: 'Carlos Contador',
-    acao: 'upload',
-    dataHora: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    ip: '10.0.0.50',
-    dispositivo: 'Firefox - Linux',
-  },
-  {
-    id: '5',
-    documentoId: '1',
-    documentoNome: 'Contrato_Social_Consolidado.pdf',
-    usuarioId: 'user3',
-    usuarioNome: 'Ana Costa',
-    acao: 'editar',
-    dataHora: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-    ip: '192.168.1.110',
-    dispositivo: 'Edge - Windows',
-    detalhes: 'Atualizou nome do arquivo',
-  },
-  {
-    id: '6',
-    documentoId: '4',
-    documentoNome: 'Folha_Pagamento_Nov2024.pdf',
-    usuarioId: 'user1',
-    usuarioNome: 'João Silva',
-    acao: 'visualizar',
-    dataHora: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(),
-    ip: '192.168.1.100',
-    dispositivo: 'Mobile - Android',
-  },
-];
+// Tipos para o histórico de acessos
+type AcaoType = 'Visualização' | 'Download' | 'Compartilhamento' | 'Edição' | 'Exclusão' | 'Upload';
 
-const acaoConfig: Record<AcessoLog['acao'], { label: string; icon: React.ReactElement; color: string }> = {
-  visualizar: { label: 'Visualizou', icon: <Visibility fontSize="small" />, color: 'info' },
-  download: { label: 'Baixou', icon: <Download fontSize="small" />, color: 'success' },
-  compartilhar: { label: 'Compartilhou', icon: <Share fontSize="small" />, color: 'primary' },
-  editar: { label: 'Editou', icon: <Edit fontSize="small" />, color: 'warning' },
-  excluir: { label: 'Excluiu', icon: <Delete fontSize="small" />, color: 'error' },
-  upload: { label: 'Enviou', icon: <Description fontSize="small" />, color: 'secondary' },
+const acaoConfig: Record<string, { label: string; icon: React.ReactElement; color: string }> = {
+  'Visualização': { label: 'Visualizou', icon: <Visibility fontSize="small" />, color: 'info' },
+  'Download': { label: 'Baixou', icon: <Download fontSize="small" />, color: 'success' },
+  'Compartilhamento': { label: 'Compartilhou', icon: <Share fontSize="small" />, color: 'primary' },
+  'Edição': { label: 'Editou', icon: <Edit fontSize="small" />, color: 'warning' },
+  'Exclusão': { label: 'Excluiu', icon: <Delete fontSize="small" />, color: 'error' },
+  'Upload': { label: 'Enviou', icon: <Description fontSize="small" />, color: 'secondary' },
 };
 
 interface TabPanelProps {
@@ -163,22 +90,45 @@ const HistoricoAcessosDialog: React.FC<HistoricoAcessosDialogProps> = ({
   const theme = useTheme();
   const [activeTab, setActiveTab] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterAcao, setFilterAcao] = useState<AcessoLog['acao'] | 'todos'>('todos');
+  const [filterAcao, setFilterAcao] = useState<string>('todos');
+  const [acessosLog, setAcessosLog] = useState<AcessoLog[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Buscar histórico quando dialog abre
+  useEffect(() => {
+    if (open && documento?.id) {
+      const fetchHistorico = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          const historico = await documentosService.getHistorico(documento.id);
+          setAcessosLog(historico);
+        } catch (err) {
+          console.error('Erro ao buscar histórico:', err);
+          setError('Erro ao carregar histórico de acessos');
+          setAcessosLog([]);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchHistorico();
+    } else if (!open) {
+      // Limpar estado quando fechar
+      setAcessosLog([]);
+      setSearchTerm('');
+      setFilterAcao('todos');
+    }
+  }, [open, documento?.id]);
 
   // Filtrar logs
-  const filteredLogs = mockAcessosLog.filter(log => {
-    // Se documento específico foi fornecido, filtrar por ele
-    if (documento && log.documentoId !== documento.id) {
-      return false;
-    }
-
+  const filteredLogs = acessosLog.filter(log => {
     // Filtro de busca
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       const matchesSearch = 
-        log.documentoNome.toLowerCase().includes(term) ||
-        log.usuarioNome.toLowerCase().includes(term) ||
-        log.detalhes?.toLowerCase().includes(term);
+        log.usuario.toLowerCase().includes(term) ||
+        log.acao.toLowerCase().includes(term);
       if (!matchesSearch) return false;
     }
 
@@ -192,7 +142,7 @@ const HistoricoAcessosDialog: React.FC<HistoricoAcessosDialogProps> = ({
 
   // Agrupar por data
   const groupedByDate = filteredLogs.reduce((acc, log) => {
-    const date = format(parseISO(log.dataHora), 'yyyy-MM-dd');
+    const date = format(parseISO(log.data), 'yyyy-MM-dd');
     if (!acc[date]) {
       acc[date] = [];
     }
@@ -294,7 +244,21 @@ const HistoricoAcessosDialog: React.FC<HistoricoAcessosDialogProps> = ({
           </Box>
 
           {/* Lista de Acessos */}
-          {Object.keys(groupedByDate).length === 0 ? (
+          {loading ? (
+            <Box sx={{ textAlign: 'center', py: 6 }}>
+              <CircularProgress size={48} sx={{ mb: 2 }} />
+              <Typography color="text.secondary">
+                Carregando histórico...
+              </Typography>
+            </Box>
+          ) : error ? (
+            <Box sx={{ textAlign: 'center', py: 6 }}>
+              <History sx={{ fontSize: 64, color: 'error.main', mb: 2 }} />
+              <Typography color="error">
+                {error}
+              </Typography>
+            </Box>
+          ) : Object.keys(groupedByDate).length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 6 }}>
               <History sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
               <Typography color="text.secondary">
@@ -313,7 +277,7 @@ const HistoricoAcessosDialog: React.FC<HistoricoAcessosDialogProps> = ({
                 </Typography>
                 <List disablePadding>
                   {logs.map((log) => {
-                    const config = acaoConfig[log.acao];
+                    const config = acaoConfig[log.acao] || { label: log.acao, icon: <History fontSize="small" />, color: 'default' };
                     return (
                       <ListItem
                         key={log.id}
@@ -334,7 +298,7 @@ const HistoricoAcessosDialog: React.FC<HistoricoAcessosDialogProps> = ({
                           primary={
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                               <Typography variant="subtitle2" component="span">
-                                {log.usuarioNome}
+                                {log.usuario}
                               </Typography>
                               <Chip
                                 icon={config.icon}
@@ -343,11 +307,6 @@ const HistoricoAcessosDialog: React.FC<HistoricoAcessosDialogProps> = ({
                                 color={config.color as any}
                                 sx={{ height: 22 }}
                               />
-                              {!documento && (
-                                <Typography variant="body2" color="text.secondary" component="span">
-                                  {log.documentoNome}
-                                </Typography>
-                              )}
                             </Box>
                           }
                           secondary={
@@ -355,19 +314,14 @@ const HistoricoAcessosDialog: React.FC<HistoricoAcessosDialogProps> = ({
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <AccessTime sx={{ fontSize: 14, color: 'text.disabled' }} />
                                 <Typography variant="caption" color="text.secondary">
-                                  {format(parseISO(log.dataHora), 'HH:mm', { locale: ptBR })}
+                                  {format(parseISO(log.data), 'HH:mm', { locale: ptBR })}
                                   {' • '}
-                                  {formatDistanceToNow(parseISO(log.dataHora), { addSuffix: true, locale: ptBR })}
+                                  {formatDistanceToNow(parseISO(log.data), { addSuffix: true, locale: ptBR })}
                                 </Typography>
                               </Box>
-                              {log.dispositivo && (
+                              {log.ip && log.ip !== '-' && (
                                 <Typography variant="caption" color="text.disabled">
-                                  {log.dispositivo}
-                                </Typography>
-                              )}
-                              {log.detalhes && (
-                                <Typography variant="caption" color="primary.main">
-                                  {log.detalhes}
+                                  IP: {log.ip}
                                 </Typography>
                               )}
                             </Box>
@@ -392,8 +346,8 @@ const HistoricoAcessosDialog: React.FC<HistoricoAcessosDialogProps> = ({
               </Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                 {Object.entries(acaoConfig).map(([key, config]) => {
-                  const count = mockAcessosLog.filter(
-                    log => log.acao === key && (!documento || log.documentoId === documento?.id)
+                  const count = acessosLog.filter(
+                    log => log.acao === key
                   ).length;
                   return (
                     <Box
@@ -429,11 +383,16 @@ const HistoricoAcessosDialog: React.FC<HistoricoAcessosDialogProps> = ({
                 Usuários Mais Ativos
               </Typography>
               <List disablePadding>
-                {['João Silva', 'Maria Souza', 'Carlos Contador'].map((usuario) => {
-                  const count = mockAcessosLog.filter(
-                    log => log.usuarioNome === usuario && (!documento || log.documentoId === documento?.id)
-                  ).length;
-                  return (
+                {/* Agrupar por usuário */}
+                {Object.entries(
+                  acessosLog.reduce((acc, log) => {
+                    acc[log.usuario] = (acc[log.usuario] || 0) + 1;
+                    return acc;
+                  }, {} as Record<string, number>)
+                )
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 5)
+                  .map(([usuario, count]) => (
                     <ListItem
                       key={usuario}
                       sx={{
@@ -444,14 +403,18 @@ const HistoricoAcessosDialog: React.FC<HistoricoAcessosDialogProps> = ({
                     >
                       <ListItemAvatar>
                         <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32 }}>
-                          {usuario[0]}
+                          {usuario[0]?.toUpperCase() || '?'}
                         </Avatar>
                       </ListItemAvatar>
                       <ListItemText primary={usuario} />
                       <Chip label={`${count} ações`} size="small" variant="outlined" />
                     </ListItem>
-                  );
-                })}
+                  ))}
+                {acessosLog.length === 0 && (
+                  <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                    Nenhum acesso registrado
+                  </Typography>
+                )}
               </List>
             </Box>
           </Box>
@@ -460,9 +423,6 @@ const HistoricoAcessosDialog: React.FC<HistoricoAcessosDialogProps> = ({
 
       <DialogActions>
         <Button onClick={onClose}>Fechar</Button>
-        <Button variant="outlined" startIcon={<Download />}>
-          Exportar Relatório
-        </Button>
       </DialogActions>
     </Dialog>
   );

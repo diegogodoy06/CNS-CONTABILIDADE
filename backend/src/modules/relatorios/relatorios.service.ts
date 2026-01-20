@@ -37,11 +37,11 @@ export class RelatoriosService {
     });
 
     const totalFaturamento = notas.reduce(
-      (acc, nota) => acc + Number(nota.valorServico || 0),
+      (acc: number, nota: any) => acc + Number(nota.valorServico || 0),
       0,
     );
     const totalLiquido = notas.reduce(
-      (acc, nota) => acc + Number(nota.valorLiquido || 0),
+      (acc: number, nota: any) => acc + Number(nota.valorLiquido || 0),
       0,
     );
 
@@ -86,7 +86,7 @@ export class RelatoriosService {
     });
 
     // Agrupamento por tipo de imposto
-    const porTipo = guias.reduce((acc: any, guia) => {
+    const porTipo = guias.reduce((acc: any, guia: any) => {
       const tipo = guia.tipo;
       if (!acc[tipo]) {
         acc[tipo] = { quantidade: 0, valorTotal: 0 };
@@ -98,7 +98,7 @@ export class RelatoriosService {
     }, {});
 
     const totalImpostos = guias.reduce(
-      (acc, guia) => acc + Number(guia.valor || 0) + Number(guia.juros || 0) + Number(guia.multa || 0),
+      (acc: number, guia: any) => acc + Number(guia.valor || 0) + Number(guia.juros || 0) + Number(guia.multa || 0),
       0,
     );
 
@@ -146,7 +146,7 @@ export class RelatoriosService {
     return {
       periodo: { inicio: filtros.dataInicio, fim: filtros.dataFim },
       totalNotas: notas.length,
-      porStatus: porStatus.map((s) => ({
+      porStatus: porStatus.map((s: any) => ({
         status: s.status,
         quantidade: s._count.id,
         valor: s._sum.valorServico,
@@ -189,7 +189,7 @@ export class RelatoriosService {
     return {
       periodo: { inicio: filtros.dataInicio, fim: filtros.dataFim },
       totalGuias: guias.length,
-      porStatus: porStatus.map((s) => ({
+      porStatus: porStatus.map((s: any) => ({
         status: s.status,
         quantidade: s._count.id,
         valor: s._sum.valor,

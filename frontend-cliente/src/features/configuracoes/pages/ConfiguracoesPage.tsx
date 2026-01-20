@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -26,6 +26,7 @@ import {
   useTheme,
   alpha,
   InputAdornment,
+  CircularProgress,
 } from '@mui/material';
 import {
   Business,
@@ -47,6 +48,9 @@ import {
   Description,
   CalendarMonth,
 } from '@mui/icons-material';
+import configuracoesService from '../../../services/configuracoesService';
+import { useAppSelector } from '../../../store/hooks';
+import type { RootState } from '../../../store';
 
 // Tipos
 interface TabPanelProps {
@@ -62,76 +66,220 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
   </div>
 );
 
-// Mock data da empresa
-const mockEmpresa = {
-  razaoSocial: 'Tech Solutions Ltda',
-  nomeFantasia: 'Tech Solutions',
-  cnpj: '12.345.678/0001-90',
-  inscricaoEstadual: '123.456.789.012',
-  inscricaoMunicipal: '12345678',
-  cnae: '6201-5/01 - Desenvolvimento de programas de computador sob encomenda',
+// Tipos de dados da empresa
+interface EmpresaData {
+  razaoSocial: string;
+  nomeFantasia: string;
+  cnpj: string;
+  inscricaoEstadual: string;
+  inscricaoMunicipal: string;
+  cnae: string;
+  regimeTributario: string;
+  endereco: {
+    cep: string;
+    logradouro: string;
+    numero: string;
+    complemento: string;
+    bairro: string;
+    cidade: string;
+    uf: string;
+  };
+  contato: {
+    telefone: string;
+    celular: string;
+    email: string;
+    site: string;
+  };
+  responsavel: {
+    nome: string;
+    cpf: string;
+    cargo: string;
+    email: string;
+    telefone: string;
+  };
+}
+
+interface ConfiguracoesFiscaisData {
+  aliquotaISS: number;
+  municipioPrestacao: string;
+  serieNFe: string;
+  ultimoNumeroNFe: number;
+  ambienteEmissao: string;
+  retencaoIR: boolean;
+  retencaoPIS: boolean;
+  retencaoCOFINS: boolean;
+  retencaoCSLL: boolean;
+  retencaoINSS: boolean;
+}
+
+interface CertificadoData {
+  tipo: string;
+  razaoSocial: string;
+  cnpj: string;
+  validoAte: string;
+  emitidoPor: string;
+  status: string;
+}
+
+const defaultEmpresa: EmpresaData = {
+  razaoSocial: '',
+  nomeFantasia: '',
+  cnpj: '',
+  inscricaoEstadual: '',
+  inscricaoMunicipal: '',
+  cnae: '',
   regimeTributario: 'Simples Nacional',
   endereco: {
-    cep: '01310-100',
-    logradouro: 'Av. Paulista',
-    numero: '1000',
-    complemento: 'Sala 1001',
-    bairro: 'Bela Vista',
-    cidade: 'São Paulo',
-    uf: 'SP',
+    cep: '',
+    logradouro: '',
+    numero: '',
+    complemento: '',
+    bairro: '',
+    cidade: '',
+    uf: '',
   },
   contato: {
-    telefone: '(11) 3000-0000',
-    celular: '(11) 99000-0000',
-    email: 'contato@techsolutions.com.br',
-    site: 'www.techsolutions.com.br',
+    telefone: '',
+    celular: '',
+    email: '',
+    site: '',
   },
   responsavel: {
-    nome: 'João da Silva',
-    cpf: '123.456.789-00',
-    cargo: 'Diretor',
-    email: 'joao@techsolutions.com.br',
-    telefone: '(11) 99000-0001',
+    nome: '',
+    cpf: '',
+    cargo: '',
+    email: '',
+    telefone: '',
   },
 };
 
-const mockConfiguracoesFiscais = {
+const defaultConfigFiscais: ConfiguracoesFiscaisData = {
   aliquotaISS: 5.0,
-  municipioPrestacao: 'São Paulo - SP',
+  municipioPrestacao: '',
   serieNFe: '1',
-  ultimoNumeroNFe: 1234,
+  ultimoNumeroNFe: 0,
   ambienteEmissao: 'producao',
-  retencaoIR: true,
-  retencaoPIS: true,
-  retencaoCOFINS: true,
-  retencaoCSLL: true,
+  retencaoIR: false,
+  retencaoPIS: false,
+  retencaoCOFINS: false,
+  retencaoCSLL: false,
   retencaoINSS: false,
 };
 
-const mockCertificado = {
-  tipo: 'A1',
-  razaoSocial: 'Tech Solutions Ltda',
-  cnpj: '12.345.678/0001-90',
-  validoAte: '2025-06-15',
-  emitidoPor: 'AC SERASA RFB v5',
-  status: 'valido',
+const defaultCertificado: CertificadoData = {
+  tipo: '',
+  razaoSocial: '',
+  cnpj: '',
+  validoAte: new Date().toISOString(),
+  emitidoPor: '',
+  status: 'pendente',
 };
 
 const ConfiguracoesPage: React.FC = () => {
   const theme = useTheme();
+  const { company } = useAppSelector((state: RootState) => state.auth);
   
   const [activeTab, setActiveTab] = useState(0);
   const [editMode, setEditMode] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   
   // Estados dos formulários
-  const [empresa, setEmpresa] = useState(mockEmpresa);
-  const [configFiscais, setConfigFiscais] = useState(mockConfiguracoesFiscais);
+  const [empresa, setEmpresa] = useState<EmpresaData>(defaultEmpresa);
+  const [configFiscais, setConfigFiscais] = useState<ConfiguracoesFiscaisData>(defaultConfigFiscais);
+  const [certificado, setCertificado] = useState<CertificadoData>(defaultCertificado);
 
-  const handleSave = () => {
-    setShowSaveSuccess(true);
-    setEditMode(false);
-    setTimeout(() => setShowSaveSuccess(false), 3000);
+  // Buscar dados da API
+  const fetchConfiguracoes = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // Buscar lista de empresas do cliente
+      const empresas = await configuracoesService.getEmpresas();
+      
+      // Usar empresa ativa do Redux ou primeira da lista
+      const emp = company || (empresas && empresas.length > 0 ? empresas[0] : null);
+      
+      if (emp) {
+        setEmpresa({
+          razaoSocial: emp.razaoSocial || '',
+          nomeFantasia: emp.nomeFantasia || '',
+          cnpj: emp.cnpj || '',
+          inscricaoEstadual: emp.inscricaoEstadual || '',
+          inscricaoMunicipal: emp.inscricaoMunicipal || '',
+          cnae: emp.cnaePrincipal || '',
+          regimeTributario: emp.regimeTributario || 'Simples Nacional',
+          endereco: {
+            cep: emp.endereco?.cep || '',
+            logradouro: emp.endereco?.logradouro || '',
+            numero: emp.endereco?.numero || '',
+            complemento: emp.endereco?.complemento || '',
+            bairro: emp.endereco?.bairro || '',
+            cidade: emp.endereco?.cidade || '',
+            uf: emp.endereco?.uf || '',
+          },
+          contato: {
+            telefone: emp.telefone || '',
+            celular: '',
+            email: emp.email || '',
+            site: '',
+          },
+          responsavel: {
+            nome: emp.responsavelLegal || '',
+            cpf: emp.cpfResponsavel || '',
+            cargo: 'Responsável',
+            email: emp.email || '',
+            telefone: emp.telefone || '',
+          },
+        });
+
+        // Configurações fiscais
+        if (emp.configuracoesFiscais) {
+          setConfigFiscais({
+            aliquotaISS: emp.configuracoesFiscais.aliquotaISSPadrao || 5.0,
+            municipioPrestacao: emp.configuracoesFiscais.municipioPrestacaoPadrao || emp.endereco?.cidade || '',
+            serieNFe: emp.configuracoesFiscais.serieNFe || '1',
+            ultimoNumeroNFe: emp.configuracoesFiscais.proximoNumeroNota || 0,
+            ambienteEmissao: 'producao',
+            retencaoIR: emp.configuracoesFiscais.retencoesDefault?.ir || false,
+            retencaoPIS: emp.configuracoesFiscais.retencoesDefault?.pis || false,
+            retencaoCOFINS: emp.configuracoesFiscais.retencoesDefault?.cofins || false,
+            retencaoCSLL: emp.configuracoesFiscais.retencoesDefault?.csll || false,
+            retencaoINSS: emp.configuracoesFiscais.retencoesDefault?.inss || false,
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao carregar configurações:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [company]);
+
+  useEffect(() => {
+    fetchConfiguracoes();
+  }, [fetchConfiguracoes]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveError(null);
+    
+    try {
+      // Salvar configurações de preferências do usuário
+      await configuracoesService.updateConfiguracoes({
+        // Mapeie aqui as configurações do usuário se houver
+      });
+      
+      setShowSaveSuccess(true);
+      setEditMode(false);
+      setTimeout(() => setShowSaveSuccess(false), 3000);
+    } catch (err: any) {
+      console.error('Erro ao salvar configurações:', err);
+      setSaveError(err.response?.data?.message || 'Erro ao salvar configurações');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const calcularDiasParaVencimento = (dataVencimento: string) => {
@@ -142,8 +290,16 @@ const ConfiguracoesPage: React.FC = () => {
     return diffDays;
   };
 
-  const diasParaVencimento = calcularDiasParaVencimento(mockCertificado.validoAte);
+  const diasParaVencimento = calcularDiasParaVencimento(certificado.validoAte);
   const statusCertificado = diasParaVencimento <= 0 ? 'vencido' : diasParaVencimento <= 30 ? 'proximo_vencimento' : 'valido';
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3 }}>
@@ -795,23 +951,23 @@ const ConfiguracoesPage: React.FC = () => {
                             : 'Certificado Válido'}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Válido até: {new Date(mockCertificado.validoAte).toLocaleDateString('pt-BR')}
+                        Válido até: {new Date(certificado.validoAte).toLocaleDateString('pt-BR')}
                       </Typography>
                     </Box>
                   </Box>
 
                   <List>
                     <ListItem>
-                      <ListItemText primary="Tipo" secondary={mockCertificado.tipo} />
+                      <ListItemText primary="Tipo" secondary={certificado.tipo || 'Não informado'} />
                     </ListItem>
                     <ListItem>
-                      <ListItemText primary="Razão Social" secondary={mockCertificado.razaoSocial} />
+                      <ListItemText primary="Razão Social" secondary={certificado.razaoSocial || empresa.razaoSocial} />
                     </ListItem>
                     <ListItem>
-                      <ListItemText primary="CNPJ" secondary={mockCertificado.cnpj} />
+                      <ListItemText primary="CNPJ" secondary={certificado.cnpj || empresa.cnpj} />
                     </ListItem>
                     <ListItem>
-                      <ListItemText primary="Emitido por" secondary={mockCertificado.emitidoPor} />
+                      <ListItemText primary="Emitido por" secondary={certificado.emitidoPor || 'Não informado'} />
                     </ListItem>
                   </List>
                 </Box>

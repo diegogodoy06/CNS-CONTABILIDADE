@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -12,6 +12,7 @@ import {
   ListItemText,
   alpha,
   useTheme,
+  CircularProgress,
 } from '@mui/material';
 import {
   ChevronLeft,
@@ -19,6 +20,8 @@ import {
   CalendarMonth,
   Circle,
 } from '@mui/icons-material';
+import guiasService from '../../services/guiasService';
+import type { Guia } from '../../types';
 
 interface Obrigacao {
   id: string;
@@ -30,7 +33,7 @@ interface Obrigacao {
 }
 
 interface CalendarioObrigacoesProps {
-  obrigacoes?: Obrigacao[];
+  empresaId?: string;
 }
 
 const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -39,16 +42,25 @@ const meses = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
-// Mock data
-const mockObrigacoes: Obrigacao[] = [
-  { id: '1', dia: 7, titulo: 'FGTS', tipo: 'folha', status: 'pendente', valor: 450.00 },
-  { id: '2', dia: 10, titulo: 'INSS Patronal', tipo: 'folha', status: 'pendente', valor: 1200.00 },
-  { id: '3', dia: 15, titulo: 'ISS', tipo: 'imposto', status: 'pendente', valor: 350.00 },
-  { id: '4', dia: 20, titulo: 'DAS Simples', tipo: 'imposto', status: 'pendente', valor: 890.00 },
-  { id: '5', dia: 20, titulo: 'IRRF', tipo: 'imposto', status: 'pendente', valor: 230.00 },
-  { id: '6', dia: 25, titulo: 'PIS/COFINS', tipo: 'imposto', status: 'pendente', valor: 1500.00 },
-  { id: '7', dia: 28, titulo: 'DCTF', tipo: 'declaracao', status: 'pendente' },
-];
+// Mapear tipo de guia para tipo de obrigação
+const mapTipoGuiaToObrigacao = (tipo: string): 'imposto' | 'declaracao' | 'folha' | 'outros' => {
+  const impostos = ['DAS', 'ISS', 'IRPJ', 'CSLL', 'PIS/COFINS'];
+  const folha = ['INSS', 'FGTS'];
+  if (impostos.includes(tipo)) return 'imposto';
+  if (folha.includes(tipo)) return 'folha';
+  if (tipo === 'obrigacao_acessoria') return 'declaracao';
+  return 'outros';
+};
+
+// Converter guia para obrigação
+const guiaToObrigacao = (guia: Guia): Obrigacao => ({
+  id: guia.id,
+  dia: new Date(guia.dataVencimento).getDate(),
+  titulo: guia.tipo,
+  tipo: mapTipoGuiaToObrigacao(guia.tipo),
+  valor: guia.valor,
+  status: guia.status === 'paga' ? 'pago' : guia.status === 'vencida' ? 'atrasado' : 'pendente',
+});
 
 const tipoColors: Record<string, string> = {
   imposto: '#0066CC',
@@ -58,13 +70,43 @@ const tipoColors: Record<string, string> = {
 };
 
 const CalendarioObrigacoes: React.FC<CalendarioObrigacoesProps> = ({
-  obrigacoes = mockObrigacoes,
+  empresaId,
 }) => {
   const theme = useTheme();
   const hoje = new Date();
   const [mesAtual, setMesAtual] = useState(hoje.getMonth());
   const [anoAtual, setAnoAtual] = useState(hoje.getFullYear());
   const [diaSelecionado, setDiaSelecionado] = useState<number | null>(null);
+  const [obrigacoes, setObrigacoes] = useState<Obrigacao[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Buscar guias da API
+  const fetchGuias = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const primeiroDia = new Date(anoAtual, mesAtual, 1);
+      const ultimoDia = new Date(anoAtual, mesAtual + 1, 0);
+      
+      const response = await guiasService.findAll({
+        empresaId,
+        dataVencimentoInicio: primeiroDia.toISOString().split('T')[0],
+        dataVencimentoFim: ultimoDia.toISOString().split('T')[0],
+        limit: 100,
+      });
+      
+      const guias = response.items || [];
+      setObrigacoes(guias.map(guiaToObrigacao));
+    } catch (err) {
+      console.error('Erro ao carregar guias:', err);
+      setObrigacoes([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [empresaId, mesAtual, anoAtual]);
+
+  useEffect(() => {
+    fetchGuias();
+  }, [fetchGuias]);
 
   const primeiroDiaMes = new Date(anoAtual, mesAtual, 1);
   const ultimoDiaMes = new Date(anoAtual, mesAtual + 1, 0);
@@ -214,18 +256,23 @@ const CalendarioObrigacoes: React.FC<CalendarioObrigacoesProps> = ({
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton size="small" onClick={mesAnterior}>
+            <IconButton size="small" onClick={mesAnterior} disabled={isLoading}>
               <ChevronLeft />
             </IconButton>
             <Typography variant="subtitle1" fontWeight={500} sx={{ minWidth: 140, textAlign: 'center' }}>
               {meses[mesAtual]} {anoAtual}
             </Typography>
-            <IconButton size="small" onClick={proximoMes}>
+            <IconButton size="small" onClick={proximoMes} disabled={isLoading}>
               <ChevronRight />
             </IconButton>
           </Box>
         </Box>
 
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
         <Grid container spacing={2}>
           {/* Calendário */}
           <Grid item xs={12} md={7}>
@@ -388,6 +435,7 @@ const CalendarioObrigacoes: React.FC<CalendarioObrigacoesProps> = ({
             </Box>
           </Grid>
         </Grid>
+        )}
       </CardContent>
     </Card>
   );

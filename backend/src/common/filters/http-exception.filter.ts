@@ -73,7 +73,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       status = HttpStatus.BAD_REQUEST;
       message = 'Dados inválidos para a operação';
       error = 'Validation Error';
-      details = { prismaValidation: exception.message };
+      details = { prismaValidation: (exception as any).message };
     }
     // Erro genérico
     else if (exception instanceof Error) {

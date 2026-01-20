@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -21,6 +21,7 @@ import {
   Menu,
   MenuItem,
   ListItemIcon,
+  CircularProgress,
 } from '@mui/material';
 import {
   Send,
@@ -35,6 +36,7 @@ import {
   DoneAll,
   Circle,
 } from '@mui/icons-material';
+import comunicacaoService, { Mensagem } from '../../../services/comunicacaoService';
 
 // Tipos
 interface Message {
@@ -61,125 +63,107 @@ interface Conversation {
   online: boolean;
 }
 
-// Mock data
-const mockConversations: Conversation[] = [
-  {
-    id: '1',
-    name: 'Maria Santos',
-    avatar: 'MS',
-    role: 'Contadora Responsável',
-    lastMessage: 'Olá! Recebi seu documento. Vou analisar e retorno em breve.',
-    lastMessageTime: new Date(Date.now() - 1000 * 60 * 5),
-    unreadCount: 2,
-    online: true,
-  },
-  {
-    id: '2',
-    name: 'João Oliveira',
-    avatar: 'JO',
-    role: 'Assistente Fiscal',
-    lastMessage: 'A guia de ISS já foi gerada.',
-    lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 2),
-    unreadCount: 0,
-    online: false,
-  },
-  {
-    id: '3',
-    name: 'Suporte CNS',
-    avatar: 'SC',
-    role: 'Atendimento Geral',
-    lastMessage: 'Seu ticket #1234 foi resolvido. Precisa de mais alguma coisa?',
-    lastMessageTime: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    unreadCount: 0,
-    online: true,
-  },
-];
-
-const mockMessages: Message[] = [
-  {
-    id: '1',
-    text: 'Olá Maria! Preciso de ajuda com a emissão de uma nota fiscal.',
-    sender: 'user',
-    timestamp: new Date(Date.now() - 1000 * 60 * 30),
-    status: 'read',
-  },
-  {
-    id: '2',
-    text: 'Olá! Claro, posso ajudar. Qual é a dúvida?',
-    sender: 'contador',
-    timestamp: new Date(Date.now() - 1000 * 60 * 28),
-    status: 'read',
-  },
-  {
-    id: '3',
-    text: 'Não sei qual código de serviço usar para consultoria em TI.',
-    sender: 'user',
-    timestamp: new Date(Date.now() - 1000 * 60 * 25),
-    status: 'read',
-  },
-  {
-    id: '4',
-    text: 'Para consultoria em TI, você deve usar o código 1.05 - Licenciamento ou cessão de direito de uso de programas de computação.',
-    sender: 'contador',
-    timestamp: new Date(Date.now() - 1000 * 60 * 20),
-    status: 'read',
-  },
-  {
-    id: '5',
-    text: 'Vou enviar um documento com a tabela completa de códigos para você consultar sempre que precisar.',
-    sender: 'contador',
-    timestamp: new Date(Date.now() - 1000 * 60 * 19),
-    status: 'read',
-    attachment: {
-      name: 'tabela_codigos_servico.pdf',
-      type: 'document',
-      url: '#',
-    },
-  },
-  {
-    id: '6',
-    text: 'Muito obrigado! Isso vai ajudar bastante.',
-    sender: 'user',
-    timestamp: new Date(Date.now() - 1000 * 60 * 10),
-    status: 'read',
-  },
-  {
-    id: '7',
-    text: 'Olá! Recebi seu documento. Vou analisar e retorno em breve.',
-    sender: 'contador',
-    timestamp: new Date(Date.now() - 1000 * 60 * 5),
-    status: 'delivered',
-  },
-];
-
 const MensagensPage: React.FC = () => {
   const theme = useTheme();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(mockConversations[0]);
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Buscar mensagens da API
+  const fetchMensagens = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [enviadas, recebidas] = await Promise.all([
+        comunicacaoService.getEnviadas(),
+        comunicacaoService.getRecebidas(),
+      ]);
+
+      // Combinar mensagens e criar conversas virtuais
+      const allMensagens = [...(enviadas.items || []), ...(recebidas.items || [])];
+      
+      // Agrupar por remetente/destinatário para criar conversas
+      const conversaMap = new Map<string, { mensagens: Mensagem[]; pessoa: any }>();
+      
+      allMensagens.forEach((msg) => {
+        const outroLado = msg.remetente.tipo === 'cliente' ? msg.destinatario : msg.remetente;
+        const key = outroLado.id;
+        
+        if (!conversaMap.has(key)) {
+          conversaMap.set(key, { mensagens: [], pessoa: outroLado });
+        }
+        conversaMap.get(key)!.mensagens.push(msg);
+      });
+
+      // Converter para formato de conversa
+      const convs: Conversation[] = Array.from(conversaMap.entries()).map(([id, data]) => {
+        const ultimaMensagem = data.mensagens.sort((a, b) => 
+          new Date(b.dataEnvio).getTime() - new Date(a.dataEnvio).getTime()
+        )[0];
+        const naoLidas = data.mensagens.filter(m => !m.lida && m.remetente.tipo !== 'cliente').length;
+        
+        return {
+          id,
+          name: data.pessoa.nome,
+          avatar: data.pessoa.nome.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase(),
+          role: data.pessoa.tipo === 'contador' ? 'Contador' : 'Atendente',
+          lastMessage: ultimaMensagem?.conteudo?.substring(0, 50) || '',
+          lastMessageTime: new Date(ultimaMensagem?.dataEnvio || Date.now()),
+          unreadCount: naoLidas,
+          online: false,
+        };
+      });
+
+      setConversations(convs);
+      if (convs.length > 0 && !selectedConversation) {
+        setSelectedConversation(convs[0]);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar mensagens:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedConversation]);
+
+  useEffect(() => {
+    fetchMensagens();
+  }, [fetchMensagens]);
 
   // Scroll para última mensagem
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSendMessage = () => {
-    if (!newMessage.trim()) return;
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedConversation) return;
 
-    const message: Message = {
-      id: Date.now().toString(),
-      text: newMessage,
-      sender: 'user',
-      timestamp: new Date(),
-      status: 'sent',
-    };
+    try {
+      // Enviar mensagem via API
+      await comunicacaoService.enviar({
+        destinatarioId: selectedConversation.id,
+        conteudo: newMessage,
+      });
 
-    setMessages([...messages, message]);
-    setNewMessage('');
+      // Atualizar localmente enquanto recarrega
+      const message: Message = {
+        id: Date.now().toString(),
+        text: newMessage,
+        sender: 'user',
+        timestamp: new Date(),
+        status: 'sent',
+      };
+
+      setMessages([...messages, message]);
+      setNewMessage('');
+      fetchMensagens(); // Recarregar para sincronizar
+    } catch (err) {
+      console.error('Erro ao enviar mensagem:', err);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -225,11 +209,19 @@ const MensagensPage: React.FC = () => {
     }
   };
 
-  const filteredConversations = mockConversations.filter(
+  const filteredConversations = conversations.filter(
     (conv) =>
       conv.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       conv.role.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (isLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3, height: 'calc(100vh - 100px)' }}>

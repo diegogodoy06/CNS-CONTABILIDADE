@@ -8,17 +8,24 @@ interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isInitialized: boolean; // Indica se a verificação inicial foi feita
   error: string | null;
   sessionExpiry: string | null;
 }
 
+// IMPORTANTE: Inicialmente NÃO estamos autenticados
+// Precisamos verificar o token na API antes de considerar autenticado
+const storedToken = localStorage.getItem('token');
+const storedRefreshToken = localStorage.getItem('refreshToken');
+
 const initialState: AuthState = {
   user: null,
   company: null,
-  token: localStorage.getItem('token'),
-  refreshToken: localStorage.getItem('refreshToken'),
-  isAuthenticated: !!localStorage.getItem('token'),
+  token: storedToken,
+  refreshToken: storedRefreshToken,
+  isAuthenticated: false, // Começa como false - será validado na inicialização
   isLoading: false,
+  isInitialized: false, // Indica que ainda não validamos o token
   error: null,
   sessionExpiry: null,
 };
@@ -27,6 +34,15 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
+    // Inicia a verificação do token armazenado
+    initializeAuth(state) {
+      state.isLoading = true;
+    },
+    // Marca que a autenticação foi inicializada (verificação concluída)
+    setInitialized(state, action: PayloadAction<boolean>) {
+      state.isInitialized = action.payload;
+      state.isLoading = false;
+    },
     loginStart(state) {
       state.isLoading = true;
       state.error = null;
@@ -35,7 +51,7 @@ const authSlice = createSlice({
       state,
       action: PayloadAction<{
         user: User;
-        company: Company;
+        company: Company | null;
         token: string;
         refreshToken: string;
       }>
@@ -97,6 +113,8 @@ const authSlice = createSlice({
 });
 
 export const {
+  initializeAuth,
+  setInitialized,
   loginStart,
   loginSuccess,
   loginFailure,

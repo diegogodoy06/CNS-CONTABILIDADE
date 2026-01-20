@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -41,6 +41,7 @@ import {
   Tooltip,
   LinearProgress,
   Badge,
+  CircularProgress,
 } from '@mui/material';
 import {
   Person,
@@ -77,6 +78,8 @@ import type { RootState } from '../../../store';
 import { toggleDarkMode } from '../../../store/slices/uiSlice';
 import { format, formatDistanceToNow, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import configuracoesService from '../../../services/configuracoesService';
+import { useAppSelector } from '../../../store/hooks';
 
 // Tipos
 interface TabPanelProps {
@@ -112,106 +115,34 @@ const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => (
   </div>
 );
 
-// Mock data do usuário
-const mockUsuario = {
-  id: '1',
-  nome: 'João da Silva',
-  email: 'joao.silva@techsolutions.com.br',
-  telefone: '(11) 99000-0001',
-  cargo: 'Administrador',
-  avatar: null,
-  dataCadastro: '2023-06-15',
-  ultimoAcesso: '2024-12-14T10:30:00',
-  twoFactorEnabled: false,
-  emailVerificado: true,
-};
-
-const mockDispositivos: Dispositivo[] = [
-  {
-    id: '1',
-    tipo: 'desktop',
-    navegador: 'Chrome 120',
-    sistema: 'Windows 11',
-    ip: '189.45.123.45',
-    localizacao: 'São Paulo, SP',
-    ultimoAcesso: '2024-12-14T10:30:00',
-    atual: true,
-  },
-  {
-    id: '2',
-    tipo: 'mobile',
-    navegador: 'Safari Mobile',
-    sistema: 'iOS 17',
-    ip: '189.45.123.46',
-    localizacao: 'São Paulo, SP',
-    ultimoAcesso: '2024-12-13T18:45:00',
-    atual: false,
-  },
-  {
-    id: '3',
-    tipo: 'tablet',
-    navegador: 'Chrome 120',
-    sistema: 'Android 14',
-    ip: '200.150.80.25',
-    localizacao: 'Rio de Janeiro, RJ',
-    ultimoAcesso: '2024-12-10T09:15:00',
-    atual: false,
-  },
-];
-
-const mockAtividades: AtividadeRecente[] = [
-  {
-    id: '1',
-    acao: 'Login',
-    descricao: 'Login realizado com sucesso',
-    ip: '189.45.123.45',
-    data: '2024-12-14T10:30:00',
-    sucesso: true,
-  },
-  {
-    id: '2',
-    acao: 'Emissão NFS-e',
-    descricao: 'Nota fiscal #1234 emitida',
-    ip: '189.45.123.45',
-    data: '2024-12-14T09:15:00',
-    sucesso: true,
-  },
-  {
-    id: '3',
-    acao: 'Alteração de senha',
-    descricao: 'Senha alterada com sucesso',
-    ip: '189.45.123.45',
-    data: '2024-11-15T14:30:00',
-    sucesso: true,
-  },
-  {
-    id: '4',
-    acao: 'Tentativa de login',
-    descricao: 'Senha incorreta',
-    ip: '45.67.89.10',
-    data: '2024-11-10T22:45:00',
-    sucesso: false,
-  },
-  {
-    id: '5',
-    acao: 'Download documento',
-    descricao: 'Relatório mensal baixado',
-    ip: '189.45.123.45',
-    data: '2024-11-08T16:20:00',
-    sucesso: true,
-  },
-];
-
 const PerfilPage: React.FC = () => {
   const theme = useTheme();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const darkMode = useSelector((state: RootState) => state.ui.darkMode);
+  const { user } = useAppSelector((state: RootState) => state.auth);
+
+  // Estados para dados da API
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dispositivos, setDispositivos] = useState<Dispositivo[]>([]);
+  const [atividades, setAtividades] = useState<AtividadeRecente[]>([]);
 
   const [activeTab, setActiveTab] = useState(0);
   const [editMode, setEditMode] = useState(false);
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
-  const [usuario, setUsuario] = useState(mockUsuario);
+  const [usuario, setUsuario] = useState({
+    id: user?.id || '',
+    nome: user?.nome || '',
+    email: user?.email || '',
+    telefone: '',
+    cargo: user?.role || '',
+    avatar: null as string | null,
+    dataCadastro: user?.createdAt || '',
+    ultimoAcesso: '',
+    twoFactorEnabled: false,
+    emailVerificado: true,
+  });
 
   // Estados para dialogs
   const [alterarSenhaOpen, setAlterarSenhaOpen] = useState(false);
@@ -226,6 +157,54 @@ const PerfilPage: React.FC = () => {
   const [showNovaSenha, setShowNovaSenha] = useState(false);
   const [showConfirmarSenha, setShowConfirmarSenha] = useState(false);
 
+  // Carregar dados do perfil
+  const fetchPerfil = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const perfilRes = await configuracoesService.getPerfil();
+      
+      if (perfilRes) {
+        setUsuario({
+          id: perfilRes.id || user?.id || '',
+          nome: perfilRes.nome || user?.nome || '',
+          email: perfilRes.email || user?.email || '',
+          telefone: perfilRes.telefone || '',
+          cargo: perfilRes.tipo || perfilRes.role || perfilRes.cargo || 'Cliente',
+          avatar: perfilRes.avatarUrl || perfilRes.avatar || null,
+          dataCadastro: perfilRes.criadoEm || perfilRes.createdAt || '',
+          ultimoAcesso: perfilRes.ultimoAcesso || '',
+          twoFactorEnabled: perfilRes.twoFactorEnabled || false,
+          emailVerificado: perfilRes.emailVerificado ?? true,
+        });
+        
+        // Se vier dispositivos e atividades
+        if (perfilRes.dispositivos) {
+          setDispositivos(perfilRes.dispositivos);
+        }
+        if (perfilRes.atividades) {
+          setAtividades(perfilRes.atividades);
+        }
+      }
+    } catch (err: any) {
+      console.error('Erro ao carregar perfil:', err);
+      // Usar dados do Redux se a API falhar
+      setUsuario(prev => ({
+        ...prev,
+        id: user?.id || prev.id,
+        nome: user?.nome || prev.nome,
+        email: user?.email || prev.email,
+        cargo: user?.role || prev.cargo || 'Cliente',
+      }));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.id, user?.nome, user?.email, user?.role]);
+
+  useEffect(() => {
+    fetchPerfil();
+  }, [fetchPerfil]);
+
   // Preferências do usuário
   const [preferencias, setPreferencias] = useState({
     idioma: 'pt-BR',
@@ -235,29 +214,48 @@ const PerfilPage: React.FC = () => {
     resumoDiario: false,
   });
 
-  const handleSave = () => {
-    setShowSaveSuccess(true);
-    setEditMode(false);
-    setTimeout(() => setShowSaveSuccess(false), 3000);
+  const handleSave = async () => {
+    try {
+      await configuracoesService.updatePerfil({
+        nome: usuario.nome,
+        email: usuario.email,
+        telefone: usuario.telefone,
+      });
+      setShowSaveSuccess(true);
+      setEditMode(false);
+      setTimeout(() => setShowSaveSuccess(false), 3000);
+    } catch (err: any) {
+      console.error('Erro ao salvar perfil:', err);
+      setError(err.response?.data?.message || 'Erro ao salvar perfil');
+    }
   };
 
   const handleToggleDarkMode = () => {
     dispatch(toggleDarkMode());
   };
 
-  const handleAlterarSenha = () => {
+  const handleAlterarSenha = async () => {
     // Validações
     if (!senhaAtual || !novaSenha || !confirmarSenha) return;
     if (novaSenha !== confirmarSenha) return;
     if (novaSenha.length < 8) return;
 
-    // Simular alteração de senha
-    setAlterarSenhaOpen(false);
-    setSenhaAtual('');
-    setNovaSenha('');
-    setConfirmarSenha('');
-    setShowSaveSuccess(true);
-    setTimeout(() => setShowSaveSuccess(false), 3000);
+    try {
+      await configuracoesService.alterarSenha({
+        senhaAtual,
+        novaSenha,
+        confirmarSenha,
+      });
+      setAlterarSenhaOpen(false);
+      setSenhaAtual('');
+      setNovaSenha('');
+      setConfirmarSenha('');
+      setShowSaveSuccess(true);
+      setTimeout(() => setShowSaveSuccess(false), 3000);
+    } catch (err: any) {
+      console.error('Erro ao alterar senha:', err);
+      setError(err.response?.data?.message || 'Erro ao alterar senha');
+    }
   };
 
   const handleDesconectarDispositivo = () => {
@@ -360,9 +358,9 @@ const PerfilPage: React.FC = () => {
                 {usuario.email}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
-                <Chip label={usuario.cargo} size="small" color="primary" variant="outlined" />
+                <Chip label={usuario.cargo || 'Cliente'} size="small" color="primary" variant="outlined" />
                 <Typography variant="body2" color="text.secondary">
-                  Membro desde {format(parseISO(usuario.dataCadastro), "MMMM 'de' yyyy", { locale: ptBR })}
+                  Membro desde {usuario.dataCadastro ? format(parseISO(usuario.dataCadastro), "MMMM 'de' yyyy", { locale: ptBR }) : '-'}
                 </Typography>
               </Box>
             </Box>
@@ -502,7 +500,7 @@ const PerfilPage: React.FC = () => {
                   <ListItem>
                     <ListItemText
                       primary="Dispositivos ativos"
-                      secondary={`${mockDispositivos.length} dispositivo(s)`}
+                      secondary={`${dispositivos.length} dispositivo(s)`}
                     />
                   </ListItem>
                   <Divider component="li" />
@@ -612,11 +610,11 @@ const PerfilPage: React.FC = () => {
                     <Computer sx={{ mr: 1, verticalAlign: 'middle' }} />
                     Dispositivos Conectados
                   </Typography>
-                  <Chip label={`${mockDispositivos.length} ativos`} size="small" />
+                  <Chip label={`${dispositivos.length} ativos`} size="small" />
                 </Box>
 
                 <List>
-                  {mockDispositivos.map((dispositivo, index) => (
+                  {dispositivos.map((dispositivo, index) => (
                     <React.Fragment key={dispositivo.id}>
                       {index > 0 && <Divider component="li" />}
                       <ListItem
@@ -867,7 +865,7 @@ const PerfilPage: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {mockAtividades.map((atividade) => (
+                  {atividades.map((atividade) => (
                     <TableRow key={atividade.id}>
                       <TableCell>
                         <Typography variant="body2" fontWeight={500}>

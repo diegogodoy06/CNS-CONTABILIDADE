@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -14,6 +14,8 @@ import {
   Tabs,
   Tab,
   Tooltip,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import {
   Receipt,
@@ -31,6 +33,10 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../../../store/hooks';
 import type { RootState } from '../../../store';
+import dashboardService from '../../../services/dashboardService';
+import guiasService from '../../../services/guiasService';
+import notasService from '../../../services/notasService';
+import type { DashboardStats, Guia, NotaFiscal } from '../../../types';
 
 // Componentes do Dashboard
 import {
@@ -212,6 +218,48 @@ const DashboardPage: React.FC = () => {
   const widgets = useAppSelector((state: RootState) => state.widgets.widgets);
   const [activeTab, setActiveTab] = useState(0);
   const [showWidgetConfig, setShowWidgetConfig] = useState(false);
+  
+  // Estados para dados da API
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardStats | null>(null);
+  const [proximasGuias, setProximasGuias] = useState<Guia[]>([]);
+  const [ultimasNotas, setUltimasNotas] = useState<NotaFiscal[]>([]);
+  const [financeiro, setFinanceiro] = useState<{
+    totalImpostos: number;
+    totalPago: number;
+    totalPendente: number;
+    proximoVencimento: string | null;
+    guiasPorStatus: { pendentes: number; vencidas: number; pagas: number };
+  } | null>(null);
+
+  // Buscar dados da API
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [resumo, financeiroData, guias, notas] = await Promise.all([
+        dashboardService.getResumo({ empresaId: company?.id }),
+        dashboardService.getFinanceiro({ empresaId: company?.id }),
+        guiasService.getProximasVencer(7),
+        notasService.findAll({ empresaId: company?.id, limit: 3 }),
+      ]);
+      
+      setDashboardData(resumo);
+      setFinanceiro(financeiroData);
+      setProximasGuias(guias);
+      setUltimasNotas(notas.items || []);
+    } catch (err: any) {
+      console.error('Erro ao carregar dashboard:', err);
+      setError(err.response?.data?.message || 'Erro ao carregar dados do dashboard');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [company?.id]);
 
   // Widgets ordenados e filtrados por visibilidade
   const kpiWidgets = widgets
@@ -222,34 +270,30 @@ const DashboardPage: React.FC = () => {
     .filter(w => w.size !== 'small' && w.visible)
     .sort((a, b) => a.order - b.order);
 
-  // Mock data
+  // Dados calculados da API
   const notasFiscais = {
-    emitidas: 12,
-    pendentes: 3,
-    valorTotal: 45678.90,
-    variacao: 12,
+    emitidas: dashboardData?.notasEmitidas?.total || 0,
+    pendentes: dashboardData?.pendencias?.guias || 0,
+    valorTotal: dashboardData?.faturamento?.total || 0,
+    variacao: dashboardData?.faturamento?.variacao || 0,
   };
 
   const impostos = {
-    pendentes: 2,
-    pagos: 5,
-    proximoVencimento: '20/01/2025',
-    valorPendente: 1234.56,
-    totalMes: 7586.00,
+    pendentes: financeiro?.guiasPorStatus?.pendentes || 0,
+    pagos: financeiro?.guiasPorStatus?.pagas || 0,
+    vencidas: financeiro?.guiasPorStatus?.vencidas || 0,
+    proximoVencimento: financeiro?.proximoVencimento || '-',
+    valorPendente: financeiro?.totalPendente || 0,
+    totalMes: financeiro?.totalImpostos || 0,
   };
 
-  const obrigacoes = [
-    { dia: 7, descricao: 'FGTS', status: 'pendente' },
-    { dia: 15, descricao: 'INSS', status: 'pendente' },
-    { dia: 20, descricao: 'DAS MEI', status: 'proximo' },
-    { dia: 25, descricao: 'ISS', status: 'futuro' },
-  ];
-
-  const ultimasNotas = [
-    { numero: '000123', tomador: 'Cliente ABC Ltda', valor: 5000, status: 'emitida' },
-    { numero: '000122', tomador: 'Empresa XYZ', valor: 3500, status: 'emitida' },
-    { numero: '000121', tomador: 'Tech Solutions', valor: 8900, status: 'cancelada' },
-  ];
+  // Formatar guias para o calendário
+  const obrigacoes = proximasGuias.slice(0, 4).map(guia => ({
+    dia: new Date(guia.dataVencimento).getDate(),
+    descricao: guia.tipo,
+    status: guia.status === 'vencida' ? 'pendente' : guia.status === 'pendente' ? 'proximo' : 'futuro',
+    valor: guia.valor,
+  }));
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -335,7 +379,7 @@ const DashboardPage: React.FC = () => {
                 }
               />
               <CardContent>
-                {activeTab === 0 ? <GraficoFaturamento /> : <GraficoImpostos />}
+                {activeTab === 0 ? <GraficoFaturamento empresaId={company?.id} /> : <GraficoImpostos />}
               </CardContent>
             </Card>
           </Grid>
@@ -441,8 +485,8 @@ const DashboardPage: React.FC = () => {
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Tooltip title="Atualizar dados">
-            <IconButton size="small">
-              <Refresh />
+            <IconButton size="small" onClick={fetchDashboardData} disabled={isLoading}>
+              {isLoading ? <CircularProgress size={20} /> : <Refresh />}
             </IconButton>
           </Tooltip>
           <Tooltip title="Personalizar dashboard">
@@ -452,6 +496,13 @@ const DashboardPage: React.FC = () => {
           </Tooltip>
         </Box>
       </Box>
+
+      {/* Error Alert */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
 
       {/* KPI Cards Row - Renderização dinâmica por ordem */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
@@ -523,39 +574,45 @@ const DashboardPage: React.FC = () => {
                 <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
                   Últimas notas emitidas
                 </Typography>
-                {ultimasNotas.map((nota, index) => (
-                  <Box
-                    key={index}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      py: 1,
-                      borderBottom: index < ultimasNotas.length - 1 ? '1px solid' : 'none',
-                      borderColor: 'divider',
-                    }}
-                  >
-                    <Box>
-                      <Typography variant="body2" fontWeight={500}>
-                        #{nota.numero}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {nota.tomador}
-                      </Typography>
+                {ultimasNotas.length > 0 ? (
+                  ultimasNotas.map((nota, index) => (
+                    <Box
+                      key={nota.id}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        py: 1,
+                        borderBottom: index < ultimasNotas.length - 1 ? '1px solid' : 'none',
+                        borderColor: 'divider',
+                      }}
+                    >
+                      <Box>
+                        <Typography variant="body2" fontWeight={500}>
+                          #{nota.numero || 'Rascunho'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {nota.tomador?.razaoSocial || nota.tomador?.nome || 'Tomador não informado'}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ textAlign: 'right' }}>
+                        <Typography variant="body2" fontWeight={600}>
+                          {formatCurrency(nota.valores?.valorServico || 0)}
+                        </Typography>
+                        <Chip
+                          size="small"
+                          label={nota.status}
+                          color={nota.status === 'emitida' ? 'success' : nota.status === 'cancelada' ? 'error' : 'warning'}
+                          sx={{ height: 20, fontSize: '0.7rem' }}
+                        />
+                      </Box>
                     </Box>
-                    <Box sx={{ textAlign: 'right' }}>
-                      <Typography variant="body2" fontWeight={600}>
-                        {formatCurrency(nota.valor)}
-                      </Typography>
-                      <Chip
-                        size="small"
-                        label={nota.status}
-                        color={nota.status === 'emitida' ? 'success' : 'error'}
-                        sx={{ height: 20, fontSize: '0.7rem' }}
-                      />
-                    </Box>
-                  </Box>
-                ))}
+                  ))
+                ) : (
+                  <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+                    Nenhuma nota emitida ainda
+                  </Typography>
+                )}
               </Box>
             </CardContent>
           </Card>

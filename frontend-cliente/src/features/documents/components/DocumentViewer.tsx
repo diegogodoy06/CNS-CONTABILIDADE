@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Dialog,
@@ -21,7 +21,6 @@ import {
   ZoomOut,
   RotateRight,
   Fullscreen,
-  Share,
   PictureAsPdf,
   TableChart,
   Image as ImageIcon,
@@ -40,7 +39,6 @@ interface DocumentViewerProps {
   onClose: () => void;
   onDownload?: (doc: DocType) => void;
   onPrint?: (doc: DocType) => void;
-  onShare?: (doc: DocType) => void;
   documents?: DocType[]; // For navigation between documents
 }
 
@@ -93,13 +91,48 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
   onClose,
   onDownload,
   onPrint,
-  onShare,
   documents = [],
 }) => {
   const [zoom, setZoom] = useState(100);
   const [rotation, setRotation] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+
+  // Buscar URL de visualização quando o documento mudar
+  useEffect(() => {
+    const fetchPreviewUrl = async () => {
+      if (!document || !open) return;
+      
+      setIsLoading(true);
+      setLoadError(false);
+      setPreviewUrl('');
+      
+      try {
+        // Importar dinamicamente para evitar dependência circular
+        const { default: documentosService } = await import('../../../services/documentosService');
+        const downloadInfo = await documentosService.download(document.id);
+        if (downloadInfo.url) {
+          // Construir URL completa com base do backend
+          const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+          // Remover /api/v1 se existir na base URL
+          const baseUrl = backendUrl.replace(/\/api\/v\d+$/, '').replace(/\/api$/, '');
+          // A URL do documento já começa com /uploads
+          const fullUrl = downloadInfo.url.startsWith('http') 
+            ? downloadInfo.url 
+            : `${baseUrl}${downloadInfo.url}`;
+          setPreviewUrl(fullUrl);
+        } else {
+          setLoadError(true);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar URL do documento:', error);
+        setLoadError(true);
+      }
+    };
+    
+    fetchPreviewUrl();
+  }, [document?.id, open]);
 
   const currentIndex = documents.findIndex(d => d.id === document?.id);
   const hasPrevious = currentIndex > 0;
@@ -145,11 +178,6 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
   const canPreview = isPreviewable(document.formato);
   const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(document.formato.toLowerCase());
-
-  // Generate mock preview URL (in production, this would be a real URL)
-  const previewUrl = document.formato.toLowerCase() === 'pdf' 
-    ? '/sample.pdf' // Mock PDF URL
-    : `https://via.placeholder.com/800x1000?text=${encodeURIComponent(document.nome)}`;
 
   return (
     <Dialog
@@ -240,13 +268,6 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
           
           <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
           
-          {onShare && (
-            <Tooltip title="Compartilhar">
-              <IconButton size="small" onClick={() => onShare(document)}>
-                <Share />
-              </IconButton>
-            </Tooltip>
-          )}
           {onPrint && canPreview && (
             <Tooltip title="Imprimir">
               <IconButton size="small" onClick={() => onPrint(document)}>

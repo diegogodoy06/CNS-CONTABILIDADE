@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -31,6 +31,7 @@ import {
   Grid,
   Alert,
   Badge,
+  CircularProgress,
 } from '@mui/material';
 import {
   Search,
@@ -50,83 +51,13 @@ import {
   PriceCheck,
   History,
 } from '@mui/icons-material';
-import { format, parseISO, addDays } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Guia, GuiaStatus, TipoGuia } from '../../../types';
+import guiasService from '../../../services/guiasService';
+import { useAppSelector } from '../../../store/hooks';
+import type { RootState } from '../../../store';
 import { MarcarPagaDialog, HistoricoPagamentosDialog, CalendarioGuiasDrawer } from '../components';
-
-// Mock data
-const mockGuias: Guia[] = [
-  {
-    id: '1',
-    tipo: 'DAS',
-    descricao: 'DAS - Simples Nacional - Competência 11/2024',
-    competencia: '11/2024',
-    dataVencimento: '2024-12-20',
-    valor: 285.60,
-    status: 'pendente',
-    codigoBarras: '23793.38128 60000.000000 00000.000102 9 95890000028560',
-    createdAt: '2024-12-01T10:00:00',
-  },
-  {
-    id: '2',
-    tipo: 'ISS',
-    descricao: 'ISS - Imposto sobre Serviços - Competência 11/2024',
-    competencia: '11/2024',
-    dataVencimento: '2024-12-10',
-    valor: 225.00,
-    status: 'paga',
-    dataPagamento: '2024-12-09',
-    comprovanteUrl: '/path/to/comprovante.pdf',
-    codigoBarras: '23793.38128 60000.000000 00000.000103 8 95890000022500',
-    createdAt: '2024-12-01T10:00:00',
-  },
-  {
-    id: '3',
-    tipo: 'INSS',
-    descricao: 'INSS Patronal - Competência 11/2024',
-    competencia: '11/2024',
-    dataVencimento: '2024-12-15',
-    valor: 1320.00,
-    status: 'pendente',
-    codigoBarras: '85830000013 2 20000000000 5 00000000000 3 00000000000 8',
-    createdAt: '2024-12-01T10:00:00',
-  },
-  {
-    id: '4',
-    tipo: 'IRPJ',
-    descricao: 'IRPJ - Imposto de Renda Pessoa Jurídica - Competência 10/2024',
-    competencia: '10/2024',
-    dataVencimento: '2024-11-30',
-    valor: 450.00,
-    status: 'vencida',
-    codigoBarras: '10499.99850 20000.000000 00000.000104 7 95580000045000',
-    createdAt: '2024-11-01T10:00:00',
-  },
-  {
-    id: '5',
-    tipo: 'CSLL',
-    descricao: 'CSLL - Contribuição Social sobre Lucro Líquido - Competência 10/2024',
-    competencia: '10/2024',
-    dataVencimento: '2024-11-30',
-    valor: 180.00,
-    status: 'paga',
-    dataPagamento: '2024-11-28',
-    codigoBarras: '10499.99850 20000.000000 00000.000105 6 95580000018000',
-    createdAt: '2024-11-01T10:00:00',
-  },
-  {
-    id: '6',
-    tipo: 'DAS',
-    descricao: 'DAS - Simples Nacional - Competência 12/2024',
-    competencia: '12/2024',
-    dataVencimento: '2025-01-20',
-    valor: 310.25,
-    status: 'pendente',
-    codigoBarras: '23793.38128 60000.000000 00000.000106 5 96890000031025',
-    createdAt: '2024-12-10T10:00:00',
-  },
-];
 
 const statusConfig: Record<GuiaStatus, { label: string; color: 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'; icon: React.ReactElement }> = {
   pendente: { label: 'Pendente', color: 'warning', icon: <Schedule fontSize="small" /> },
@@ -152,6 +83,17 @@ const formatCurrency = (value: number): string => {
 };
 
 const GuiasPage: React.FC = () => {
+  const { company } = useAppSelector((state: RootState) => state.auth);
+  
+  // Estados para dados da API
+  const [guias, setGuias] = useState<Guia[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState({ todas: 0, pendentes: 0, pagas: 0, vencidas: 0 });
+  const [resumo, setResumo] = useState({ totalPendente: 0, totalVencido: 0 });
+  const [proximasVencer, setProximasVencer] = useState<Guia[]>([]);
+
   const [activeTab, setActiveTab] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
@@ -164,42 +106,74 @@ const GuiasPage: React.FC = () => {
   const [historicoDialogOpen, setHistoricoDialogOpen] = useState(false);
   const [calendarioDrawerOpen, setCalendarioDrawerOpen] = useState(false);
 
+  // Buscar guias da API
+  const fetchGuias = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const statusMap: Record<number, GuiaStatus | undefined> = {
+        0: undefined,
+        1: 'pendente',
+        2: 'paga',
+        3: 'vencida',
+      };
+      
+      const response = await guiasService.findAll({
+        empresaId: company?.id,
+        status: statusMap[activeTab],
+        page: page + 1,
+        limit: rowsPerPage,
+      });
+      
+      setGuias(response.items || []);
+      setTotalCount(response.meta?.total || 0);
+      
+      // Buscar contagens e resumo
+      const [allGuias, pendentesRes, pagasRes, vencidasRes, proximasRes, resumoRes] = await Promise.all([
+        guiasService.findAll({ empresaId: company?.id, limit: 1 }),
+        guiasService.findAll({ empresaId: company?.id, status: 'pendente', limit: 1 }),
+        guiasService.findAll({ empresaId: company?.id, status: 'paga', limit: 1 }),
+        guiasService.findAll({ empresaId: company?.id, status: 'vencida', limit: 1 }),
+        guiasService.getProximasVencer(7),
+        guiasService.getResumo({ empresaId: company?.id }),
+      ]);
+      
+      setStats({
+        todas: allGuias.meta?.total || 0,
+        pendentes: pendentesRes.meta?.total || 0,
+        pagas: pagasRes.meta?.total || 0,
+        vencidas: vencidasRes.meta?.total || 0,
+      });
+      setProximasVencer(proximasRes || []);
+      setResumo({
+        totalPendente: resumoRes?.totalPendente || 0,
+        totalVencido: 0, // Calcular se necessário
+      });
+    } catch (err: any) {
+      console.error('Erro ao carregar guias:', err);
+      setError(err.response?.data?.message || 'Erro ao carregar guias');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [company?.id, activeTab, page, rowsPerPage]);
+
+  useEffect(() => {
+    fetchGuias();
+  }, [fetchGuias]);
+
   const tabs = [
-    { label: 'Todas', count: mockGuias.length },
-    { label: 'Pendentes', count: mockGuias.filter(g => g.status === 'pendente').length },
-    { label: 'Pagas', count: mockGuias.filter(g => g.status === 'paga').length },
-    { label: 'Vencidas', count: mockGuias.filter(g => g.status === 'vencida').length },
+    { label: 'Todas', count: stats.todas },
+    { label: 'Pendentes', count: stats.pendentes },
+    { label: 'Pagas', count: stats.pagas },
+    { label: 'Vencidas', count: stats.vencidas },
   ];
 
-  const filteredGuias = mockGuias.filter(guia => {
-    const matchesSearch =
-      guia.tipo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      guia.competencia.includes(searchTerm);
-    
-    let matchesTab = true;
-    if (activeTab === 1) matchesTab = guia.status === 'pendente';
-    if (activeTab === 2) matchesTab = guia.status === 'paga';
-    if (activeTab === 3) matchesTab = guia.status === 'vencida';
-    
-    return matchesSearch && matchesTab;
-  });
+  // Guias já filtradas pela API
+  const filteredGuias = guias;
 
-  // Calculate totals
-  const totalPendente = mockGuias
-    .filter(g => g.status === 'pendente')
-    .reduce((sum, g) => sum + g.valor, 0);
-  
-  const totalVencido = mockGuias
-    .filter(g => g.status === 'vencida')
-    .reduce((sum, g) => sum + g.valor, 0);
-
-  const proximasVencer = mockGuias
-    .filter(g => {
-      if (g.status !== 'pendente') return false;
-      const vencimento = parseISO(g.dataVencimento);
-      const limite = addDays(new Date(), 7);
-      return vencimento <= limite;
-    }).length;
+  // Valores do resumo
+  const totalPendente = resumo.totalPendente;
+  const totalVencido = resumo.totalVencido;
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, guia: Guia) => {
     setAnchorEl(event.currentTarget);
@@ -223,10 +197,53 @@ const GuiasPage: React.FC = () => {
     handleMenuClose();
   };
 
+  // Função para download de PDF da guia
+  const handleDownloadPdf = async (guia: Guia) => {
+    try {
+      const blob = await guiasService.downloadPdf(guia.id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `guia-${guia.tipo}-${guia.competencia}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Erro ao baixar PDF:', err);
+      setError(err.response?.data?.message || 'Erro ao baixar PDF da guia');
+    }
+    handleMenuClose();
+  };
+
+  // Função para visualizar guia
+  const handleVisualizarGuia = (guia: Guia) => {
+    setSelectedGuia(guia);
+    // Por enquanto abre o dialog de upload (pode ser substituído por um dialog de visualização dedicado)
+    setUploadDialogOpen(true);
+    handleMenuClose();
+  };
+
   const handleConfirmPagamento = async (guiaId: string, dados: { dataPagamento: string; formaPagamento: string; valorPago: number; comprovante?: File; observacao?: string }) => {
-    console.log('Pagamento confirmado:', guiaId, dados);
-    setMarcarPagaDialogOpen(false);
-    // Aqui seria feita a chamada à API para atualizar o status da guia
+    try {
+      await guiasService.pagar(guiaId, {
+        dataPagamento: dados.dataPagamento,
+        valorPago: dados.valorPago,
+        formaPagamento: dados.formaPagamento,
+        observacao: dados.observacao,
+      });
+      
+      // Se tiver comprovante, faz upload
+      if (dados.comprovante) {
+        await guiasService.uploadComprovante(guiaId, dados.comprovante);
+      }
+      
+      setMarcarPagaDialogOpen(false);
+      fetchGuias(); // Recarregar lista
+    } catch (err: any) {
+      console.error('Erro ao confirmar pagamento:', err);
+      setError(err.response?.data?.message || 'Erro ao confirmar pagamento');
+    }
   };
 
   const getDaysUntilDue = (dateStr: string): number => {
@@ -271,6 +288,12 @@ const GuiasPage: React.FC = () => {
       </Box>
 
       {/* Alerts */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+      
       {totalVencido > 0 && (
         <Alert severity="error" sx={{ mb: 3 }} icon={<Warning />}>
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -279,10 +302,10 @@ const GuiasPage: React.FC = () => {
         </Alert>
       )}
       
-      {proximasVencer > 0 && (
+      {proximasVencer.length > 0 && (
         <Alert severity="warning" sx={{ mb: 3 }}>
           <Typography variant="body2">
-            {proximasVencer} guia(s) com vencimento nos próximos 7 dias.
+            {proximasVencer.length} guia(s) com vencimento nos próximos 7 dias.
           </Typography>
         </Alert>
       )}
@@ -316,9 +339,9 @@ const GuiasPage: React.FC = () => {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
-              <Badge badgeContent={proximasVencer} color="warning">
+              <Badge badgeContent={proximasVencer.length} color="warning">
                 <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                  {mockGuias.filter(g => g.status === 'pendente').length}
+                  {stats.pendentes}
                 </Typography>
               </Badge>
               <Typography variant="body2" color="text.secondary">
@@ -331,7 +354,7 @@ const GuiasPage: React.FC = () => {
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography variant="h4" sx={{ fontWeight: 700, color: 'success.main' }}>
-                {mockGuias.filter(g => g.status === 'paga').length}
+                {stats.pagas}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Pagas este mês
@@ -402,9 +425,24 @@ const GuiasPage: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredGuias
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((guia) => {
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                      <CircularProgress size={32} />
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        Carregando guias...
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredGuias.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Nenhuma guia encontrada
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredGuias.map((guia) => {
                     const daysUntil = getDaysUntilDue(guia.dataVencimento);
                     const isUrgent = guia.status === 'pendente' && daysUntil <= 3 && daysUntil >= 0;
                     
@@ -478,7 +516,7 @@ const GuiasPage: React.FC = () => {
                         </TableCell>
                         <TableCell align="right">
                           <Tooltip title="Download Guia">
-                            <IconButton size="small">
+                            <IconButton size="small" onClick={() => handleDownloadPdf(guia)}>
                               <Download fontSize="small" />
                             </IconButton>
                           </Tooltip>
@@ -495,14 +533,15 @@ const GuiasPage: React.FC = () => {
                         </TableCell>
                       </TableRow>
                     );
-                  })}
+                  })
+                }
               </TableBody>
             </Table>
           </TableContainer>
 
           <TablePagination
             component="div"
-            count={filteredGuias.length}
+            count={totalCount}
             page={page}
             onPageChange={(_, newPage) => setPage(newPage)}
             rowsPerPage={rowsPerPage}
@@ -518,11 +557,11 @@ const GuiasPage: React.FC = () => {
 
       {/* Context Menu */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-        <MenuItem onClick={handleMenuClose}>
+        <MenuItem onClick={() => selectedGuia && handleVisualizarGuia(selectedGuia)}>
           <ListItemIcon><Visibility fontSize="small" /></ListItemIcon>
           <ListItemText>Visualizar</ListItemText>
         </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
+        <MenuItem onClick={() => selectedGuia && handleDownloadPdf(selectedGuia)}>
           <ListItemIcon><Download fontSize="small" /></ListItemIcon>
           <ListItemText>Download PDF</ListItemText>
         </MenuItem>
@@ -543,7 +582,12 @@ const GuiasPage: React.FC = () => {
           <>
             <Divider />
             {selectedGuia.comprovanteUrl && (
-              <MenuItem onClick={handleMenuClose}>
+              <MenuItem onClick={() => {
+                if (selectedGuia.comprovanteUrl) {
+                  window.open(selectedGuia.comprovanteUrl, '_blank');
+                }
+                handleMenuClose();
+              }}>
                 <ListItemIcon><AttachFile fontSize="small" /></ListItemIcon>
                 <ListItemText>Ver Comprovante</ListItemText>
               </MenuItem>
@@ -663,7 +707,7 @@ const GuiasPage: React.FC = () => {
       <CalendarioGuiasDrawer
         open={calendarioDrawerOpen}
         onClose={() => setCalendarioDrawerOpen(false)}
-        guias={mockGuias}
+        guias={guias}
         onGuiaClick={(guia) => {
           setSelectedGuia(guia);
           setCalendarioDrawerOpen(false);

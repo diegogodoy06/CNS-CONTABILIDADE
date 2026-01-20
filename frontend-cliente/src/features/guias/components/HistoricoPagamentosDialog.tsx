@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -24,6 +24,7 @@ import {
   Tooltip,
   alpha,
   useTheme,
+  CircularProgress,
 } from '@mui/material';
 import {
   Close,
@@ -52,6 +53,7 @@ import {
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { TipoGuia } from '../../../types';
+import guiasService from '../../../services/guiasService';
 
 interface HistoricoPagamentosDialogProps {
   open: boolean;
@@ -68,18 +70,6 @@ interface Pagamento {
   formaPagamento: 'pix' | 'boleto' | 'debito' | 'transferencia';
   comprovanteUrl?: string;
 }
-
-// Mock de histórico de pagamentos
-const mockPagamentos: Pagamento[] = [
-  { id: '1', guiaId: '2', tipoGuia: 'ISS', competencia: '11/2024', valor: 225.00, dataPagamento: '2024-12-09', formaPagamento: 'pix' },
-  { id: '2', guiaId: '5', tipoGuia: 'CSLL', competencia: '10/2024', valor: 180.00, dataPagamento: '2024-11-28', formaPagamento: 'boleto' },
-  { id: '3', guiaId: '7', tipoGuia: 'DAS', competencia: '10/2024', valor: 295.80, dataPagamento: '2024-11-18', formaPagamento: 'debito' },
-  { id: '4', guiaId: '8', tipoGuia: 'ISS', competencia: '10/2024', valor: 198.50, dataPagamento: '2024-11-08', formaPagamento: 'pix' },
-  { id: '5', guiaId: '9', tipoGuia: 'INSS', competencia: '10/2024', valor: 1280.00, dataPagamento: '2024-11-15', formaPagamento: 'transferencia' },
-  { id: '6', guiaId: '10', tipoGuia: 'DAS', competencia: '09/2024', valor: 302.40, dataPagamento: '2024-10-18', formaPagamento: 'pix' },
-  { id: '7', guiaId: '11', tipoGuia: 'IRPJ', competencia: '09/2024', valor: 480.00, dataPagamento: '2024-10-30', formaPagamento: 'boleto' },
-  { id: '8', guiaId: '12', tipoGuia: 'ISS', competencia: '09/2024', valor: 210.00, dataPagamento: '2024-10-08', formaPagamento: 'pix' },
-];
 
 const tipoConfig: Record<TipoGuia, { label: string; color: string }> = {
   DAS: { label: 'DAS', color: '#2563eb' },
@@ -121,15 +111,47 @@ const HistoricoPagamentosDialog: React.FC<HistoricoPagamentosDialogProps> = ({
 }) => {
   const theme = useTheme();
   const [tabValue, setTabValue] = useState(0);
+  const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Buscar guias pagas da API
+  const fetchPagamentos = useCallback(async () => {
+    if (!open) return;
+    setIsLoading(true);
+    try {
+      const response = await guiasService.findAll({ status: 'pago' as any, limit: 50 });
+      const items = response.items || [];
+      // Mapear guias pagas para pagamentos
+      const mapped: Pagamento[] = items.map((guia: any) => ({
+        id: guia.id,
+        guiaId: guia.id,
+        tipoGuia: guia.tipo || 'ISS',
+        competencia: guia.competencia || '',
+        valor: guia.valor || 0,
+        dataPagamento: guia.dataPagamento || guia.updatedAt || new Date().toISOString(),
+        formaPagamento: guia.formaPagamento || 'pix',
+        comprovanteUrl: guia.comprovanteUrl,
+      }));
+      setPagamentos(mapped);
+    } catch (err) {
+      console.error('Erro ao carregar pagamentos:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    fetchPagamentos();
+  }, [fetchPagamentos]);
 
   // Calcular estatísticas
-  const totalPago = mockPagamentos.reduce((sum, p) => sum + p.valor, 0);
-  const totalPagamentos = mockPagamentos.length;
-  const mediaPorPagamento = totalPago / totalPagamentos;
+  const totalPago = pagamentos.reduce((sum, p) => sum + p.valor, 0);
+  const totalPagamentos = pagamentos.length;
+  const mediaPorPagamento = totalPagamentos > 0 ? totalPago / totalPagamentos : 0;
 
   // Agrupar por tipo de guia para gráfico de pizza
   const dadosPorTipo = Object.entries(
-    mockPagamentos.reduce((acc, p) => {
+    pagamentos.reduce((acc, p) => {
       acc[p.tipoGuia] = (acc[p.tipoGuia] || 0) + p.valor;
       return acc;
     }, {} as Record<string, number>)
@@ -141,9 +163,9 @@ const HistoricoPagamentosDialog: React.FC<HistoricoPagamentosDialogProps> = ({
 
   // Agrupar por mês para gráfico de barras
   const dadosPorMes = [
-    { mes: 'Set', valor: mockPagamentos.filter(p => p.competencia.startsWith('09')).reduce((s, p) => s + p.valor, 0) },
-    { mes: 'Out', valor: mockPagamentos.filter(p => p.competencia.startsWith('10')).reduce((s, p) => s + p.valor, 0) },
-    { mes: 'Nov', valor: mockPagamentos.filter(p => p.competencia.startsWith('11')).reduce((s, p) => s + p.valor, 0) },
+    { mes: 'Set', valor: pagamentos.filter(p => p.competencia.startsWith('09')).reduce((s, p) => s + p.valor, 0) },
+    { mes: 'Out', valor: pagamentos.filter(p => p.competencia.startsWith('10')).reduce((s, p) => s + p.valor, 0) },
+    { mes: 'Nov', valor: pagamentos.filter(p => p.competencia.startsWith('11')).reduce((s, p) => s + p.valor, 0) },
   ];
 
   return (
@@ -169,6 +191,12 @@ const HistoricoPagamentosDialog: React.FC<HistoricoPagamentosDialogProps> = ({
       </DialogTitle>
 
       <DialogContent dividers>
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+        <>
         {/* Cards de Resumo */}
         <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid item xs={12} sm={4}>
@@ -261,7 +289,7 @@ const HistoricoPagamentosDialog: React.FC<HistoricoPagamentosDialogProps> = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {mockPagamentos.map((pagamento) => (
+                {pagamentos.map((pagamento) => (
                   <TableRow key={pagamento.id} hover>
                     <TableCell>
                       <Chip
@@ -394,6 +422,8 @@ const HistoricoPagamentosDialog: React.FC<HistoricoPagamentosDialogProps> = ({
             </Grid>
           </Grid>
         </TabPanel>
+        </>
+        )}
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>

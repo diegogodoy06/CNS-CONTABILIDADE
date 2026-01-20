@@ -389,7 +389,7 @@ export class GuiasService {
       const empresas = await this.prisma.empresa.findMany({
         select: { id: true },
       });
-      return empresas.map((e) => e.id);
+      return empresas.map((e: any) => e.id);
     }
 
     if (user.tipo === TipoUsuario.CLIENTE) {
@@ -397,7 +397,7 @@ export class GuiasService {
         where: { usuarioId: user.id, ativo: true },
         select: { empresaId: true },
       });
-      return vinculos.map((v) => v.empresaId);
+      return vinculos.map((v: any) => v.empresaId);
     }
 
     const colaborador = await this.prisma.colaboradorEscritorio.findUnique({
@@ -409,7 +409,7 @@ export class GuiasService {
         where: { escritorioId: colaborador.escritorioId },
         select: { id: true },
       });
-      return empresas.map((e) => e.id);
+      return empresas.map((e: any) => e.id);
     }
 
     return [];

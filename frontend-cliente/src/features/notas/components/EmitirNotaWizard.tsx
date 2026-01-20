@@ -21,6 +21,9 @@ import EtapaTomador from './wizard/EtapaTomador';
 import EtapaServico from './wizard/EtapaServico';
 import EtapaRevisao from './wizard/EtapaRevisao';
 import type { Tomador } from '../../../types';
+import notasService from '../../../services/notasService';
+import { useAppSelector } from '../../../store/hooks';
+import type { RootState } from '../../../store';
 
 // Tipos do Wizard
 export interface DadosServico {
@@ -89,11 +92,13 @@ const EmitirNotaWizard: React.FC<EmitirNotaWizardProps> = ({
   onSuccess,
   modoSimulacao = false,
 }) => {
+  const { company } = useAppSelector((state: RootState) => state.auth);
   const [activeStep, setActiveStep] = useState(0);
   const [tomadorSelecionado, setTomadorSelecionado] = useState<Tomador | null>(null);
   const [dadosServico, setDadosServico] = useState<DadosServico>(initialServico);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // Calcular tributos automaticamente
   const tributosCalculados = useMemo(() => {
@@ -159,36 +164,94 @@ const EmitirNotaWizard: React.FC<EmitirNotaWizardProps> = ({
   };
 
   const handleSalvarRascunho = async () => {
+    if (!company || !tomadorSelecionado) {
+      setApiError('Selecione um tomador primeiro');
+      return;
+    }
+    
     setIsSubmitting(true);
-    // Simular salvamento
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSubmitting(false);
-    console.log('Rascunho salvo:', { tomador: tomadorSelecionado, servico: dadosServico });
-    alert('Rascunho salvo com sucesso!');
+    setApiError(null);
+    
+    try {
+      await notasService.criarRascunho(company.id, {
+        tomadorId: tomadorSelecionado.id,
+        descricaoServico: dadosServico.descricao,
+        codigoCNAE: dadosServico.cnae,
+        codigoTributacao: dadosServico.codigoTributacao,
+        valorServico: dadosServico.valorServico,
+        municipioPrestacao: dadosServico.municipioPrestacao,
+        ufPrestacao: dadosServico.ufPrestacao,
+        retencoes: {
+          ir: dadosServico.retencaoIR,
+          pis: dadosServico.retencaoPIS,
+          cofins: dadosServico.retencaoCOFINS,
+          csll: dadosServico.retencaoCSLL,
+          inss: dadosServico.retencaoINSS,
+          iss: dadosServico.retencaoISS,
+        },
+      });
+      alert('Rascunho salvo com sucesso!');
+    } catch (err: any) {
+      console.error('Erro ao salvar rascunho:', err);
+      setApiError(err.response?.data?.message || 'Erro ao salvar rascunho');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleEmitir = async () => {
     if (!validarEtapa(2)) return;
+    if (!company || !tomadorSelecionado) {
+      setApiError('Dados inválidos');
+      return;
+    }
 
     setIsSubmitting(true);
-    // Simular emissão
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsSubmitting(false);
-
-    const dadosNota: DadosNota = {
-      tomador: tomadorSelecionado,
-      servico: {
-        ...dadosServico,
-        ...tributosCalculados,
-      },
-    };
-
-    console.log(modoSimulacao ? 'Simulação:' : 'Emissão:', dadosNota);
+    setApiError(null);
     
-    if (onSuccess) {
-      onSuccess(dadosNota);
-    } else {
-      alert(modoSimulacao ? 'Simulação gerada com sucesso!' : 'Nota fiscal emitida com sucesso!');
+    try {
+      const dadosNota = {
+        tomadorId: tomadorSelecionado.id,
+        descricaoServico: dadosServico.descricao,
+        codigoCNAE: dadosServico.cnae,
+        codigoTributacao: dadosServico.codigoTributacao,
+        valorServico: dadosServico.valorServico,
+        municipioPrestacao: dadosServico.municipioPrestacao,
+        ufPrestacao: dadosServico.ufPrestacao,
+        retencoes: {
+          ir: dadosServico.retencaoIR,
+          pis: dadosServico.retencaoPIS,
+          cofins: dadosServico.retencaoCOFINS,
+          csll: dadosServico.retencaoCSLL,
+          inss: dadosServico.retencaoINSS,
+          iss: dadosServico.retencaoISS,
+        },
+      };
+
+      if (modoSimulacao) {
+        await notasService.simular(company.id, dadosNota);
+        alert('Simulação gerada com sucesso!');
+      } else {
+        const notaCriada = await notasService.create(company.id, dadosNota);
+        // Emitir a nota criada
+        await notasService.emitir(notaCriada.id);
+        alert('Nota fiscal emitida com sucesso!');
+      }
+
+      if (onSuccess) {
+        onSuccess({
+          tomador: tomadorSelecionado,
+          servico: {
+            ...dadosServico,
+            ...tributosCalculados,
+          },
+        });
+      }
+    } catch (err: any) {
+      console.error('Erro ao emitir nota:', err);
+      setApiError(err.response?.data?.message || 'Erro ao emitir nota fiscal');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

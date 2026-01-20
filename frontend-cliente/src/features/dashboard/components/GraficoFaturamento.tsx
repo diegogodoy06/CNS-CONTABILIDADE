@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   Box,
   Typography,
   ToggleButton,
   ToggleButtonGroup,
   useTheme,
+  CircularProgress,
 } from '@mui/material';
 import {
   AreaChart,
@@ -16,6 +17,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
+import dashboardService from '../../../services/dashboardService';
 
 interface DadosMensais {
   mes: string;
@@ -24,22 +26,46 @@ interface DadosMensais {
   lucro: number;
 }
 
-const dadosMensais: DadosMensais[] = [
-  { mes: 'Jul', faturamento: 32000, despesas: 18000, lucro: 14000 },
-  { mes: 'Ago', faturamento: 38000, despesas: 19500, lucro: 18500 },
-  { mes: 'Set', faturamento: 35000, despesas: 17800, lucro: 17200 },
-  { mes: 'Out', faturamento: 42000, despesas: 21000, lucro: 21000 },
-  { mes: 'Nov', faturamento: 48000, despesas: 22500, lucro: 25500 },
-  { mes: 'Dez', faturamento: 45678, despesas: 20800, lucro: 24878 },
-];
-
 interface GraficoFaturamentoProps {
-  periodo?: '6m' | '12m' | 'ytd';
+  empresaId?: string;
 }
 
-const GraficoFaturamento: React.FC<GraficoFaturamentoProps> = () => {
+const GraficoFaturamento: React.FC<GraficoFaturamentoProps> = ({ empresaId }) => {
   const theme = useTheme();
-  const [periodo, setPeriodo] = React.useState<'6m' | '12m' | 'ytd'>('6m');
+  const [periodo, setPeriodo] = useState<'6m' | '12m' | 'ytd'>('6m');
+  const [dados, setDados] = useState<DadosMensais[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchFaturamento = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await dashboardService.getFaturamentoMensal({
+        empresaId,
+        periodo,
+      });
+      
+      // Transformar resposta da API para o formato do gráfico
+      if (response && Array.isArray(response)) {
+        setDados(response.map((item: any) => ({
+          mes: item.mes || item.label || '',
+          faturamento: item.faturamento || item.valor || 0,
+          despesas: item.despesas || 0,
+          lucro: item.lucro || (item.faturamento || 0) - (item.despesas || 0),
+        })));
+      } else {
+        setDados([]);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar faturamento:', err);
+      setDados([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [empresaId, periodo]);
+
+  useEffect(() => {
+    fetchFaturamento();
+  }, [fetchFaturamento]);
 
   const handlePeriodoChange = (
     _event: React.MouseEvent<HTMLElement>,
@@ -124,11 +150,20 @@ const GraficoFaturamento: React.FC<GraficoFaturamentoProps> = () => {
         </ToggleButtonGroup>
       </Box>
 
-      <ResponsiveContainer width="100%" height={250}>
-        <AreaChart
-          data={dadosMensais}
-          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-        >
+      {isLoading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 250 }}>
+          <CircularProgress />
+        </Box>
+      ) : dados.length === 0 ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 250 }}>
+          <Typography color="text.secondary">Sem dados de faturamento</Typography>
+        </Box>
+      ) : (
+        <ResponsiveContainer width="100%" height={250}>
+          <AreaChart
+            data={dados}
+            margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+          >
           <defs>
             <linearGradient id="colorFaturamento" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor={theme.palette.primary.main} stopOpacity={0.3} />
@@ -183,6 +218,7 @@ const GraficoFaturamento: React.FC<GraficoFaturamentoProps> = () => {
           />
         </AreaChart>
       </ResponsiveContainer>
+      )}
     </Box>
   );
 };

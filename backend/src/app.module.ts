@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { APP_GUARD } from '@nestjs/core';
+import { join } from 'path';
 
 // Módulos internos
 import { PrismaModule } from './prisma/prisma.module';
@@ -35,22 +37,31 @@ import { validateEnv } from './config/env.validation';
       envFilePath: ['.env.local', '.env'],
     }),
 
+    // Servir arquivos estáticos (uploads)
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..'),
+      serveRoot: '/',
+      serveStaticOptions: {
+        index: false,
+      },
+    }),
+
     // Rate Limiting
     ThrottlerModule.forRoot([
       {
         name: 'short',
         ttl: 1000, // 1 segundo
-        limit: 3,
+        limit: 20, // Aumentado para desenvolvimento
       },
       {
         name: 'medium',
         ttl: 10000, // 10 segundos
-        limit: 20,
+        limit: 100,
       },
       {
         name: 'long',
         ttl: 60000, // 1 minuto
-        limit: 100,
+        limit: 300,
       },
     ]),
 

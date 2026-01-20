@@ -286,12 +286,15 @@ const CategoryTree: React.FC<CategoryTreeProps> = ({
                     py: 1,
                     pr: hasChildren ? 5 : 2,
                     '&.Mui-selected': {
-                      bgcolor: `${category.color}10`,
+                      bgcolor: `${category.color}15`,
                       borderRight: 3,
                       borderColor: category.color,
+                      '& .MuiListItemText-primary': {
+                        color: 'text.primary',
+                      },
                     },
                     '&:hover': {
-                      bgcolor: `${category.color}08`,
+                      bgcolor: 'transparent',
                     },
                   }}
                 >
@@ -343,10 +346,13 @@ const CategoryTree: React.FC<CategoryTreeProps> = ({
                             pl: 6,
                             py: 0.5,
                             '&.Mui-selected': {
-                              bgcolor: `${category.color}10`,
+                              bgcolor: `${category.color}15`,
+                              '& .MuiListItemText-primary': {
+                                color: 'text.primary',
+                              },
                             },
                             '&:hover': {
-                              bgcolor: `${category.color}05`,
+                              bgcolor: 'transparent',
                             },
                           }}
                           selected={isSubSelected}

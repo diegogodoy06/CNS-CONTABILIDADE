@@ -1,16 +1,23 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Provider, useSelector } from 'react-redux';
+import { Provider, useSelector, useDispatch } from 'react-redux';
 import { ThemeProvider, CssBaseline, CircularProgress, Box, Typography } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFnsV3';
 import { ptBR } from 'date-fns/locale';
 
 import { store } from './store';
-import type { RootState } from './store';
+import type { RootState, AppDispatch } from './store';
 import { createAppTheme } from './theme';
 import { MainLayout } from './components/layout';
+import { 
+  initializeAuth, 
+  setInitialized, 
+  loginSuccess, 
+  logout 
+} from './store/slices/authSlice';
+import authService from './services/authService';
 
 // Lazy loaded pages
 const LoginPage = lazy(() => import('./features/auth/pages/LoginPage'));
@@ -39,15 +46,66 @@ const PageLoader: React.FC = () => (
   <Box
     sx={{
       display: 'flex',
+      flexDirection: 'column',
       justifyContent: 'center',
       alignItems: 'center',
       height: '100vh',
       bgcolor: 'grey.50',
+      gap: 2,
     }}
   >
     <CircularProgress />
+    <Typography variant="body2" color="text.secondary">
+      Carregando...
+    </Typography>
   </Box>
 );
+
+// Componente que inicializa a autenticação verificando token com a API
+const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const dispatch = useDispatch<AppDispatch>();
+  const { token, isInitialized } = useSelector((state: RootState) => state.auth);
+
+  useEffect(() => {
+    const initAuth = async () => {
+      // Se não há token, marca como inicializado e não autenticado
+      if (!token) {
+        dispatch(setInitialized(true));
+        return;
+      }
+
+      dispatch(initializeAuth());
+      
+      try {
+        // Verifica se o token é válido buscando os dados do usuário
+        const { user, company } = await authService.getCurrentUser();
+        const refreshToken = localStorage.getItem('refreshToken') || '';
+        
+        dispatch(loginSuccess({
+          user,
+          company,
+          token,
+          refreshToken,
+        }));
+        dispatch(setInitialized(true));
+      } catch (error) {
+        console.warn('Token inválido ou expirado:', error);
+        // Token inválido - faz logout
+        dispatch(logout());
+        dispatch(setInitialized(true));
+      }
+    };
+
+    initAuth();
+  }, [dispatch, token]);
+
+  // Mostra loading enquanto verifica o token
+  if (!isInitialized) {
+    return <PageLoader />;
+  }
+
+  return <>{children}</>;
+};
 
 // Auth guard component
 interface PrivateRouteProps {
@@ -55,7 +113,12 @@ interface PrivateRouteProps {
 }
 
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
-  const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
+  const { isAuthenticated, isInitialized } = useSelector((state: RootState) => state.auth);
+  
+  // Se ainda não inicializou, mostra loading
+  if (!isInitialized) {
+    return <PageLoader />;
+  }
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -70,7 +133,12 @@ interface PublicRouteProps {
 }
 
 const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
-  const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
+  const { isAuthenticated, isInitialized } = useSelector((state: RootState) => state.auth);
+  
+  // Se ainda não inicializou, mostra loading
+  if (!isInitialized) {
+    return <PageLoader />;
+  }
   
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
@@ -113,23 +181,24 @@ const AppContent: React.FC = () => {
       <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
         <CssBaseline />
         <BrowserRouter>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              {/* Public Routes */}
-              <Route
-                path="/login"
-                element={
-                  <PublicRoute>
-                    <LoginPage />
-                  </PublicRoute>
-                }
-              />
-              <Route
-                path="/recuperar-senha"
-                element={
-                  <PublicRoute>
-                    <RecuperarSenhaPage />
-                  </PublicRoute>
+          <AuthInitializer>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                {/* Public Routes */}
+                <Route
+                  path="/login"
+                  element={
+                    <PublicRoute>
+                      <LoginPage />
+                    </PublicRoute>
+                  }
+                />
+                <Route
+                  path="/recuperar-senha"
+                  element={
+                    <PublicRoute>
+                      <RecuperarSenhaPage />
+                    </PublicRoute>
                 }
               />
               
@@ -182,6 +251,7 @@ const AppContent: React.FC = () => {
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
           </Suspense>
+        </AuthInitializer>
         </BrowserRouter>
       </LocalizationProvider>
     </ThemeProvider>

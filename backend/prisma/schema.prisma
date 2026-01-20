@@ -503,6 +503,7 @@ model Tomador {
   cep                String?       @db.VarChar(8)
   estadoId           Int?          @map("estado_id")
   municipioCodigo    Int?          @map("municipio_codigo")
+  tags               String[]      @default([])
   observacoes        String?
   ativo              Boolean       @default(true)
   criadoEm           DateTime      @default(now()) @map("criado_em")

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -36,6 +36,8 @@ import {
   FormControl,
   InputLabel,
   Select,
+  CircularProgress,
+  TextField,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import {
@@ -44,7 +46,6 @@ import {
   Delete,
   MoreVert,
   Visibility,
-  Share,
   PictureAsPdf,
   TableChart,
   Image as ImageIcon,
@@ -55,14 +56,15 @@ import {
   FolderZip,
   Description,
   Edit,
-  ContentCopy,
-  History,
   MenuOpen,
   Menu as MenuIcon,
 } from '@mui/icons-material';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Document as DocType, DocumentCategory, DocumentFilters } from '../../../types';
+import documentosService from '../../../services/documentosService';
+import { useAppSelector } from '../../../store/hooks';
+import type { RootState } from '../../../store';
 import {
   FileUploadZone,
   DocumentViewer,
@@ -70,175 +72,7 @@ import {
   CategoryTree,
   DocumentBreadcrumbs,
   BatchDownloadDialog,
-  ShareDocumentDialog,
-  HistoricoAcessosDialog,
 } from '../components';
-
-// Extended mock data
-const mockDocuments: DocType[] = [
-  {
-    id: '1',
-    nome: 'Contrato_Social_Consolidado.pdf',
-    categoria: 'juridico',
-    subcategoria: 'contrato-social',
-    dataUpload: '2024-12-10T10:30:00',
-    dataReferencia: '2024-01-15',
-    tamanho: 2457600,
-    formato: 'pdf',
-    url: '/documents/1',
-    uploadedBy: 'João Silva',
-    visualizado: true,
-    compartilhadoContador: true,
-    privado: false,
-    versao: 2,
-    tags: ['Importante'],
-  },
-  {
-    id: '2',
-    nome: 'Balanço_Patrimonial_2024.xlsx',
-    categoria: 'contabil',
-    subcategoria: 'balanco',
-    dataUpload: '2024-12-08T14:20:00',
-    competencia: '2024',
-    tamanho: 1126400,
-    formato: 'xlsx',
-    url: '/documents/2',
-    uploadedBy: 'Contador',
-    visualizado: false,
-    compartilhadoContador: true,
-    privado: false,
-    versao: 1,
-  },
-  {
-    id: '3',
-    nome: 'DAS_Novembro_2024.pdf',
-    categoria: 'fiscal',
-    subcategoria: 'das',
-    dataUpload: '2024-12-05T09:15:00',
-    competencia: '11/2024',
-    tamanho: 512000,
-    formato: 'pdf',
-    url: '/documents/3',
-    uploadedBy: 'Contador',
-    visualizado: false,
-    compartilhadoContador: true,
-    privado: false,
-    versao: 1,
-    tags: ['Mensal'],
-  },
-  {
-    id: '4',
-    nome: 'Folha_Pagamento_Nov2024.pdf',
-    categoria: 'trabalhista',
-    subcategoria: 'folha',
-    dataUpload: '2024-12-03T16:45:00',
-    competencia: '11/2024',
-    tamanho: 3276800,
-    formato: 'pdf',
-    url: '/documents/4',
-    uploadedBy: 'Contador',
-    visualizado: true,
-    compartilhadoContador: true,
-    privado: false,
-    versao: 1,
-    tags: ['Mensal'],
-  },
-  {
-    id: '5',
-    nome: 'Certidão_Negativa_Federal.pdf',
-    categoria: 'operacional',
-    subcategoria: 'certidoes',
-    dataUpload: '2024-12-01T11:30:00',
-    tamanho: 256000,
-    formato: 'pdf',
-    url: '/documents/5',
-    uploadedBy: 'João Silva',
-    visualizado: true,
-    compartilhadoContador: false,
-    privado: false,
-    versao: 1,
-  },
-  {
-    id: '6',
-    nome: 'DARF_IR_Outubro2024.pdf',
-    categoria: 'fiscal',
-    subcategoria: 'darf',
-    dataUpload: '2024-11-28T09:00:00',
-    competencia: '10/2024',
-    tamanho: 384000,
-    formato: 'pdf',
-    url: '/documents/6',
-    uploadedBy: 'Contador',
-    visualizado: true,
-    compartilhadoContador: true,
-    privado: false,
-    versao: 1,
-  },
-  {
-    id: '7',
-    nome: 'Recibos_FGTS_Nov2024.pdf',
-    categoria: 'trabalhista',
-    subcategoria: 'fgts',
-    dataUpload: '2024-11-25T14:00:00',
-    competencia: '11/2024',
-    tamanho: 445000,
-    formato: 'pdf',
-    url: '/documents/7',
-    uploadedBy: 'Contador',
-    visualizado: false,
-    compartilhadoContador: true,
-    privado: false,
-    versao: 1,
-  },
-  {
-    id: '8',
-    nome: 'Certificado_Digital_A1.pfx',
-    categoria: 'certificados',
-    subcategoria: 'digital',
-    dataUpload: '2024-11-20T10:00:00',
-    tamanho: 8200,
-    formato: 'pfx',
-    url: '/documents/8',
-    uploadedBy: 'João Silva',
-    visualizado: true,
-    compartilhadoContador: false,
-    privado: true,
-    versao: 1,
-    tags: ['Importante'],
-  },
-  {
-    id: '9',
-    nome: 'Comprovante_Pagamento_Aluguel.jpg',
-    categoria: 'operacional',
-    subcategoria: 'contratos',
-    dataUpload: '2024-11-18T16:30:00',
-    competencia: '11/2024',
-    tamanho: 1856000,
-    formato: 'jpg',
-    url: '/documents/9',
-    uploadedBy: 'João Silva',
-    visualizado: true,
-    compartilhadoContador: false,
-    privado: false,
-    versao: 1,
-  },
-  {
-    id: '10',
-    nome: 'DRE_Terceiro_Trimestre_2024.xlsx',
-    categoria: 'contabil',
-    subcategoria: 'dre',
-    dataUpload: '2024-11-15T11:00:00',
-    competencia: '3T/2024',
-    tamanho: 856000,
-    formato: 'xlsx',
-    url: '/documents/10',
-    uploadedBy: 'Contador',
-    visualizado: true,
-    compartilhadoContador: true,
-    privado: false,
-    versao: 1,
-  },
-];
 
 const categoryConfig: Record<DocumentCategory, { label: string; color: string }> = {
   fiscal: { label: 'Fiscal', color: '#3b82f6' },
@@ -281,9 +115,15 @@ const SIDEBAR_WIDTH = 280;
 const DocumentsPage: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { company } = useAppSelector((state: RootState) => state.auth);
+  
+  // State para dados da API
+  const [documents, setDocuments] = useState<DocType[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   // State
-  const [documents] = useState<DocType[]>(mockDocuments);
   const [filters, setFilters] = useState<DocumentFilters>({});
   const [selectedCategory, setSelectedCategory] = useState<DocumentCategory | string | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
@@ -295,13 +135,13 @@ const DocumentsPage: React.FC = () => {
   
   // Dialog states
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadCategory, setUploadCategory] = useState<DocumentCategory>('operacional');
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerDocument, setViewerDocument] = useState<DocType | null>(null);
   const [batchDownloadOpen, setBatchDownloadOpen] = useState(false);
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [shareDocument, setShareDocument] = useState<DocType | null>(null);
-  const [historicoAcessosOpen, setHistoricoAcessosOpen] = useState(false);
-  const [historicoDocument, setHistoricoDocument] = useState<DocType | null>(null);
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [renameDocument, setRenameDocument] = useState<DocType | null>(null);
+  const [newName, setNewName] = useState('');
   
   // Menu state
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -313,6 +153,35 @@ const DocumentsPage: React.FC = () => {
     message: '',
     severity: 'success',
   });
+
+  // Buscar documentos da API
+  const fetchDocuments = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await documentosService.findAll({
+        empresaId: company?.id,
+        categoria: selectedCategory as DocumentCategory || undefined,
+        busca: filters.busca,
+        dataInicio: filters.dataInicio,
+        dataFim: filters.dataFim,
+        competencia: filters.competencia,
+        page: page + 1,
+        limit: rowsPerPage,
+      });
+      setDocuments(response.items || []);
+      setTotalCount(response.meta?.total || 0);
+    } catch (err: any) {
+      console.error('Erro ao carregar documentos:', err);
+      setError(err.response?.data?.message || 'Erro ao carregar documentos');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [company?.id, selectedCategory, filters, page, rowsPerPage]);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   // Compute category counts
   const categoryCounts = useMemo(() => {
@@ -326,40 +195,11 @@ const DocumentsPage: React.FC = () => {
     return counts;
   }, [documents]);
 
-  // Filter documents
+  // Filter documents (filtros já aplicados pela API, este é para filtros locais adicionais)
   const filteredDocs = useMemo(() => {
     return documents.filter((doc) => {
-      // Category filter
-      if (selectedCategory && doc.categoria !== selectedCategory) return false;
-      
-      // Subcategory filter
+      // Subcategory filter (local)
       if (selectedSubcategory && doc.subcategoria !== selectedSubcategory) return false;
-      
-      // Search filter
-      if (filters.busca) {
-        const search = filters.busca.toLowerCase();
-        const matchesName = doc.nome.toLowerCase().includes(search);
-        const matchesCompetencia = doc.competencia?.toLowerCase().includes(search);
-        const matchesTags = doc.tags?.some((t) => t.toLowerCase().includes(search));
-        if (!matchesName && !matchesCompetencia && !matchesTags) return false;
-      }
-      
-      // Date filter
-      if (filters.dataInicio) {
-        const docDate = new Date(doc.dataUpload);
-        const startDate = new Date(filters.dataInicio);
-        if (docDate < startDate) return false;
-      }
-      
-      if (filters.dataFim) {
-        const docDate = new Date(doc.dataUpload);
-        const endDate = new Date(filters.dataFim);
-        endDate.setHours(23, 59, 59);
-        if (docDate > endDate) return false;
-      }
-      
-      // Competência filter
-      if (filters.competencia && doc.competencia !== filters.competencia) return false;
       
       // Tags filter
       if (filters.tags && filters.tags.length > 0) {
@@ -369,7 +209,7 @@ const DocumentsPage: React.FC = () => {
       
       return true;
     });
-  }, [documents, selectedCategory, selectedSubcategory, filters]);
+  }, [documents, selectedSubcategory, filters.tags]);
 
   // Handlers
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -402,32 +242,120 @@ const DocumentsPage: React.FC = () => {
     handleMenuClose();
   };
 
-  const handleDownload = useCallback((doc: DocType) => {
-    setSnackbar({
-      open: true,
-      message: `Download iniciado: ${doc.nome}`,
-      severity: 'info',
-    });
-    handleMenuClose();
+  const handleDownload = useCallback(async (doc: DocType) => {
+    try {
+      setSnackbar({
+        open: true,
+        message: `Iniciando download: ${doc.nome}`,
+        severity: 'info',
+      });
+      
+      // Obtém informações de download do backend
+      const downloadInfo = await documentosService.download(doc.id);
+      
+      // Se tiver URL, faz o download
+      if (downloadInfo.url) {
+        const link = document.createElement('a');
+        link.href = downloadInfo.url;
+        link.download = downloadInfo.nomeArquivo || doc.nome;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      
+      setSnackbar({
+        open: true,
+        message: `Download concluído: ${doc.nome}`,
+        severity: 'success',
+      });
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || 'Erro ao baixar documento',
+        severity: 'error',
+      });
+    }
   }, []);
 
   const handleDownloadSelected = () => {
     setBatchDownloadOpen(true);
   };
 
-  const handleShareDocument = (doc: DocType) => {
-    setShareDocument(doc);
-    setShareDialogOpen(true);
+  const handleRenameDocument = (doc: DocType) => {
+    setRenameDocument(doc);
+    setNewName(doc.nome); // Usa o nome completo do documento
+    setRenameDialogOpen(true);
     handleMenuClose();
   };
 
-  const handleDeleteSelected = () => {
-    setSnackbar({
-      open: true,
-      message: `${selectedDocs.length} documento(s) excluído(s)`,
-      severity: 'success',
-    });
-    setSelectedDocs([]);
+  const handleConfirmRename = async () => {
+    if (!renameDocument || !newName.trim()) return;
+    try {
+      // Usa apenas o novo nome digitado pelo usuário
+      await documentosService.update(renameDocument.id, { titulo: newName.trim() });
+      setSnackbar({
+        open: true,
+        message: 'Documento renomeado com sucesso!',
+        severity: 'success',
+      });
+      fetchDocuments();
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || 'Erro ao renomear documento',
+        severity: 'error',
+      });
+    } finally {
+      setRenameDialogOpen(false);
+      setRenameDocument(null);
+      setNewName('');
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (!window.confirm(`Tem certeza que deseja excluir ${selectedDocs.length} documento(s)?`)) {
+      return;
+    }
+    try {
+      await Promise.all(selectedDocs.map(id => documentosService.remove(id)));
+      setSnackbar({
+        open: true,
+        message: `${selectedDocs.length} documento(s) excluído(s)`,
+        severity: 'success',
+      });
+      setSelectedDocs([]);
+      fetchDocuments(); // Recarregar lista
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || 'Erro ao excluir documento(s)',
+        severity: 'error',
+      });
+    }
+  };
+
+  const handleDeleteDocument = async (doc: DocType) => {
+    if (!window.confirm(`Tem certeza que deseja excluir "${doc.nome}"?`)) {
+      handleMenuClose();
+      return;
+    }
+    try {
+      await documentosService.remove(doc.id);
+      setSnackbar({
+        open: true,
+        message: `Documento "${doc.nome}" excluído`,
+        severity: 'success',
+      });
+      fetchDocuments();
+    } catch (err: any) {
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || 'Erro ao excluir documento',
+        severity: 'error',
+      });
+    }
+    handleMenuClose();
   };
 
   const handleUploadComplete = (files: File[]) => {
@@ -437,6 +365,7 @@ const DocumentsPage: React.FC = () => {
       severity: 'success',
     });
     setUploadDialogOpen(false);
+    fetchDocuments(); // Recarregar lista após upload
   };
 
   const handleNavigate = (category: DocumentCategory | string | null, subcategory: string | null) => {
@@ -553,6 +482,7 @@ const DocumentsPage: React.FC = () => {
         sx={{
           width: sidebarOpen ? SIDEBAR_WIDTH : 0,
           flexShrink: 0,
+          zIndex: (theme) => theme.zIndex.drawer - 1,
           '& .MuiDrawer-paper': {
             width: SIDEBAR_WIDTH,
             position: 'relative',
@@ -560,6 +490,7 @@ const DocumentsPage: React.FC = () => {
             border: 'none',
             borderRight: 1,
             borderColor: 'divider',
+            zIndex: 'auto',
           },
         }}
       >
@@ -590,15 +521,6 @@ const DocumentsPage: React.FC = () => {
             </Box>
           </Box>
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Tooltip title="Histórico de Acessos">
-              <Button
-                variant="outlined"
-                startIcon={<History />}
-                onClick={() => setHistoricoAcessosOpen(true)}
-              >
-                Histórico
-              </Button>
-            </Tooltip>
             <Button
               variant="contained"
               startIcon={<Upload />}
@@ -888,44 +810,14 @@ const DocumentsPage: React.FC = () => {
           Download
         </MenuItem>
         <Divider />
-        <MenuItem onClick={handleMenuClose}>
+        <MenuItem onClick={() => menuDocument && handleRenameDocument(menuDocument)}>
           <ListItemIcon>
             <Edit fontSize="small" />
           </ListItemIcon>
           Renomear
         </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
-          <ListItemIcon>
-            <ContentCopy fontSize="small" />
-          </ListItemIcon>
-          Duplicar
-        </MenuItem>
-        <MenuItem onClick={() => menuDocument && handleShareDocument(menuDocument)}>
-          <ListItemIcon>
-            <Share fontSize="small" />
-          </ListItemIcon>
-          Compartilhar
-        </MenuItem>
-        <MenuItem onClick={() => {
-          if (menuDocument) {
-            setHistoricoDocument(menuDocument);
-            setHistoricoAcessosOpen(true);
-          }
-          handleMenuClose();
-        }}>
-          <ListItemIcon>
-            <History fontSize="small" />
-          </ListItemIcon>
-          Histórico de Acessos
-        </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
-          <ListItemIcon>
-            <History fontSize="small" />
-          </ListItemIcon>
-          Ver versões
-        </MenuItem>
         <Divider />
-        <MenuItem onClick={handleMenuClose} sx={{ color: 'error.main' }}>
+        <MenuItem onClick={() => menuDocument && handleDeleteDocument(menuDocument)} sx={{ color: 'error.main' }}>
           <ListItemIcon>
             <Delete fontSize="small" sx={{ color: 'error.main' }} />
           </ListItemIcon>
@@ -949,16 +841,43 @@ const DocumentsPage: React.FC = () => {
           </Box>
         </DialogTitle>
         <DialogContent>
-          {selectedCategory && (
-            <Alert severity="info" sx={{ mb: 2 }}>
-              Os arquivos serão adicionados à categoria:{' '}
-              <strong>{categoryConfig[selectedCategory as DocumentCategory]?.label || selectedCategory}</strong>
-            </Alert>
-          )}
+          {/* Seleção de Categoria */}
+          <FormControl fullWidth sx={{ mb: 3 }}>
+            <InputLabel>Categoria do Documento *</InputLabel>
+            <Select
+              value={uploadCategory}
+              label="Categoria do Documento *"
+              onChange={(e) => setUploadCategory(e.target.value as DocumentCategory)}
+            >
+              {Object.entries(categoryConfig).map(([key, config]) => (
+                <MenuItem key={key} value={key}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box
+                      sx={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: '50%',
+                        bgcolor: config.color,
+                      }}
+                    />
+                    {config.label}
+                  </Box>
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Os arquivos serão adicionados à categoria:{' '}
+            <strong>{categoryConfig[uploadCategory]?.label || uploadCategory}</strong>
+          </Alert>
+          
           <FileUploadZone
             onUpload={handleUploadComplete}
             maxFileSize={25}
             multiple
+            empresaId={company?.id}
+            categoria={uploadCategory}
           />
         </DialogContent>
         <DialogActions>
@@ -975,7 +894,6 @@ const DocumentsPage: React.FC = () => {
           setViewerDocument(null);
         }}
         onDownload={handleDownload}
-        onShare={handleShareDocument}
         documents={filteredDocs}
       />
 
@@ -989,34 +907,50 @@ const DocumentsPage: React.FC = () => {
         documents={documents.filter(doc => selectedDocs.includes(doc.id))}
       />
 
-      {/* Share Document Dialog */}
-      <ShareDocumentDialog
-        open={shareDialogOpen}
+      {/* Rename Document Dialog */}
+      <Dialog
+        open={renameDialogOpen}
         onClose={() => {
-          setShareDialogOpen(false);
-          setShareDocument(null);
+          setRenameDialogOpen(false);
+          setRenameDocument(null);
+          setNewName('');
         }}
-        document={shareDocument}
-        onShare={(shareData) => {
-          setSnackbar({
-            open: true,
-            message: shareData.type === 'link' 
-              ? 'Link de compartilhamento copiado!' 
-              : `Convite enviado para ${shareData.recipients?.length} pessoa(s)`,
-            severity: 'success',
-          });
-        }}
-      />
-
-      {/* Histórico de Acessos Dialog */}
-      <HistoricoAcessosDialog
-        open={historicoAcessosOpen}
-        onClose={() => {
-          setHistoricoAcessosOpen(false);
-          setHistoricoDocument(null);
-        }}
-        documento={historicoDocument}
-      />
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Renomear Documento</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Novo nome"
+            fullWidth
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleConfirmRename();
+              }
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setRenameDialogOpen(false);
+            setRenameDocument(null);
+            setNewName('');
+          }}>
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleConfirmRename} 
+            variant="contained"
+            disabled={!newName.trim()}
+          >
+            Renomear
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar */}
       <Snackbar

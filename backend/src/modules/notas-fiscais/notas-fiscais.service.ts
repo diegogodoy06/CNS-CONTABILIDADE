@@ -11,7 +11,6 @@ import { FilterNotaFiscalDto } from './dto/filter-nota-fiscal.dto';
 import { CancelarNotaFiscalDto } from './dto/cancelar-nota-fiscal.dto';
 import { createPaginatedResult } from '../../common/dto/pagination.dto';
 import { Usuario, TipoUsuario, StatusNota, Prisma } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
 export class NotasFiscaisService {
@@ -522,7 +521,7 @@ export class NotasFiscaisService {
       const empresas = await this.prisma.empresa.findMany({
         select: { id: true },
       });
-      return empresas.map((e) => e.id);
+      return empresas.map((e: any) => e.id);
     }
 
     if (user.tipo === TipoUsuario.CLIENTE) {
@@ -530,7 +529,7 @@ export class NotasFiscaisService {
         where: { usuarioId: user.id, ativo: true },
         select: { empresaId: true },
       });
-      return vinculos.map((v) => v.empresaId);
+      return vinculos.map((v: any) => v.empresaId);
     }
 
     const colaborador = await this.prisma.colaboradorEscritorio.findUnique({
@@ -542,7 +541,7 @@ export class NotasFiscaisService {
         where: { escritorioId: colaborador.escritorioId },
         select: { id: true },
       });
-      return empresas.map((e) => e.id);
+      return empresas.map((e: any) => e.id);
     }
 
     return [];

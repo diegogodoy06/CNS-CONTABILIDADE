@@ -1,4 +1,5 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -34,11 +35,12 @@ import {
   Avatar,
   CircularProgress,
   Autocomplete,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 import {
   Search,
-  FilterList,
   Add,
   Edit,
   Delete,
@@ -56,7 +58,11 @@ import {
 } from '@mui/icons-material';
 import type { Tomador } from '../../../types';
 import { HistoricoTomadorDialog, ConsultaCNPJDialog } from '../components';
+import ConfirmDialog from '../../../components/shared/ConfirmDialog';
 import { cepService } from '../../../services/cepService';
+import tomadoresService from '../../../services/tomadoresService';
+import { useAppSelector } from '../../../store/hooks';
+import type { RootState } from '../../../store';
 
 // Tags disponíveis
 const tagsDisponiveis = [
@@ -70,135 +76,6 @@ const tagsDisponiveis = [
   { id: '8', label: 'Tecnologia', color: '#6366f1' },
 ];
 
-// Mock data
-const mockTomadores: Tomador[] = [
-  {
-    id: '1',
-    tipo: 'pj',
-    documento: '12345678000190',
-    razaoSocial: 'Tech Solutions LTDA',
-    nomeFantasia: 'TechSol',
-    inscricaoMunicipal: '12345678',
-    inscricaoEstadual: '123456789012',
-    endereco: {
-      cep: '01310100',
-      logradouro: 'Av Paulista',
-      numero: '1000',
-      complemento: 'Sala 1001',
-      bairro: 'Bela Vista',
-      cidade: 'São Paulo',
-      uf: 'SP',
-      codigoMunicipio: '3550308',
-    },
-    email: 'contato@techsolutions.com.br',
-    telefone: '(11) 99999-0001',
-    ativo: true,
-    totalNotas: 15,
-    faturamentoTotal: 67500,
-    tags: ['Tecnologia', 'VIP', 'Recorrente'],
-    createdAt: '2024-01-15T10:00:00',
-    updatedAt: '2024-12-01T14:30:00',
-  },
-  {
-    id: '2',
-    tipo: 'pj',
-    documento: '98765432000110',
-    razaoSocial: 'Consultoria Alpha S.A',
-    nomeFantasia: 'Alpha',
-    inscricaoMunicipal: '87654321',
-    endereco: {
-      cep: '04543011',
-      logradouro: 'Av Faria Lima',
-      numero: '2000',
-      complemento: 'Andar 15',
-      bairro: 'Itaim Bibi',
-      cidade: 'São Paulo',
-      uf: 'SP',
-      codigoMunicipio: '3550308',
-    },
-    email: 'financeiro@alpha.com.br',
-    telefone: '(11) 99999-0002',
-    ativo: true,
-    totalNotas: 8,
-    faturamentoTotal: 32000,
-    tags: ['Recorrente'],
-    createdAt: '2024-03-20T09:00:00',
-    updatedAt: '2024-11-15T11:00:00',
-  },
-  {
-    id: '3',
-    tipo: 'pf',
-    documento: '12345678901',
-    nome: 'João Carlos Silva',
-    endereco: {
-      cep: '01310100',
-      logradouro: 'Rua Augusta',
-      numero: '500',
-      complemento: 'Apto 42',
-      bairro: 'Consolação',
-      cidade: 'São Paulo',
-      uf: 'SP',
-      codigoMunicipio: '3550308',
-    },
-    email: 'joao.silva@email.com',
-    telefone: '(11) 98888-0003',
-    ativo: true,
-    totalNotas: 3,
-    faturamentoTotal: 2550,
-    tags: ['Novo'],
-    createdAt: '2024-06-01T14:00:00',
-    updatedAt: '2024-12-05T16:00:00',
-  },
-  {
-    id: '4',
-    tipo: 'pj',
-    documento: '55566677000188',
-    razaoSocial: 'Startup Digital ME',
-    nomeFantasia: 'DigiStart',
-    endereco: {
-      cep: '04547004',
-      logradouro: 'Rua Funchal',
-      numero: '418',
-      bairro: 'Vila Olímpia',
-      cidade: 'São Paulo',
-      uf: 'SP',
-      codigoMunicipio: '3550308',
-    },
-    email: 'contato@digistart.com.br',
-    telefone: '(11) 97777-0004',
-    ativo: true,
-    totalNotas: 5,
-    faturamentoTotal: 12500,
-    tags: ['Tecnologia', 'Novo'],
-    createdAt: '2024-05-10T08:00:00',
-    updatedAt: '2024-12-08T10:00:00',
-  },
-  {
-    id: '5',
-    tipo: 'pf',
-    documento: '98765432109',
-    nome: 'Maria Fernanda Costa',
-    endereco: {
-      cep: '22041080',
-      logradouro: 'Av Atlântica',
-      numero: '1500',
-      complemento: 'Cobertura',
-      bairro: 'Copacabana',
-      cidade: 'Rio de Janeiro',
-      uf: 'RJ',
-      codigoMunicipio: '3304557',
-    },
-    email: 'maria.costa@email.com',
-    telefone: '(21) 96666-0005',
-    ativo: false,
-    totalNotas: 2,
-    faturamentoTotal: 1800,
-    tags: ['Inadimplente'],
-    createdAt: '2024-02-20T11:00:00',
-    updatedAt: '2024-09-10T09:00:00',
-  },
-];
-
 const formatDocument = (doc: string, tipo: 'pj' | 'pf'): string => {
   if (tipo === 'pj') {
     return doc.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
@@ -210,7 +87,68 @@ const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
+// Validação de CPF
+const validarCPF = (cpf: string): boolean => {
+  const cpfLimpo = cpf.replace(/\D/g, '');
+  if (cpfLimpo.length !== 11) return false;
+  if (/^(\d)\1+$/.test(cpfLimpo)) return false;
+  
+  let soma = 0;
+  for (let i = 0; i < 9; i++) {
+    soma += parseInt(cpfLimpo.charAt(i)) * (10 - i);
+  }
+  let resto = (soma * 10) % 11;
+  if (resto === 10 || resto === 11) resto = 0;
+  if (resto !== parseInt(cpfLimpo.charAt(9))) return false;
+  
+  soma = 0;
+  for (let i = 0; i < 10; i++) {
+    soma += parseInt(cpfLimpo.charAt(i)) * (11 - i);
+  }
+  resto = (soma * 10) % 11;
+  if (resto === 10 || resto === 11) resto = 0;
+  if (resto !== parseInt(cpfLimpo.charAt(10))) return false;
+  
+  return true;
+};
+
+// Validação de CNPJ
+const validarCNPJ = (cnpj: string): boolean => {
+  const cnpjLimpo = cnpj.replace(/\D/g, '');
+  if (cnpjLimpo.length !== 14) return false;
+  if (/^(\d)\1+$/.test(cnpjLimpo)) return false;
+  
+  const calcDigit = (base: string, weights: number[]) => {
+    let soma = 0;
+    for (let i = 0; i < weights.length; i++) {
+      soma += parseInt(base.charAt(i)) * weights[i];
+    }
+    const resto = soma % 11;
+    return resto < 2 ? 0 : 11 - resto;
+  };
+  
+  const weights1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const weights2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  
+  const digit1 = calcDigit(cnpjLimpo.substring(0, 12), weights1);
+  const digit2 = calcDigit(cnpjLimpo.substring(0, 12) + digit1, weights2);
+  
+  return (
+    cnpjLimpo.charAt(12) === digit1.toString() &&
+    cnpjLimpo.charAt(13) === digit2.toString()
+  );
+};
+
 const TomadoresPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { company } = useAppSelector((state: RootState) => state.auth);
+  
+  // Estados para dados da API
+  const [allTomadores, setAllTomadores] = useState<Tomador[]>([]); // Todos os tomadores
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
   const [activeTab, setActiveTab] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
@@ -228,6 +166,16 @@ const TomadoresPage: React.FC = () => {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [tagFilter, setTagFilter] = useState<string[]>([]);
   
+  // Estados para diálogo de confirmação e snackbar
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [tomadorToDelete, setTomadorToDelete] = useState<Tomador | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+  
   // Form state
   const [formData, setFormData] = useState({
     tipo: 'pj' as 'pj' | 'pf',
@@ -244,37 +192,121 @@ const TomadoresPage: React.FC = () => {
     bairro: '',
     cidade: '',
     uf: '',
+    codigoMunicipio: '',
     email: '',
     telefone: '',
   });
 
-  const tabs = [
-    { label: 'Todos', count: mockTomadores.length },
-    { label: 'Pessoa Jurídica', count: mockTomadores.filter(t => t.tipo === 'pj').length },
-    { label: 'Pessoa Física', count: mockTomadores.filter(t => t.tipo === 'pf').length },
-    { label: 'Inativos', count: mockTomadores.filter(t => !t.ativo).length },
-  ];
+  // Buscar TODOS os tomadores da API uma única vez
+  const fetchTomadores = useCallback(async () => {
+    if (!company?.id) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      // Buscar todos os tomadores (ativos e inativos) - limite máximo do backend é 100
+      const response = await tomadoresService.findAll({
+        empresaId: company.id,
+        limit: 100,
+      });
+      
+      // Buscar inativos separadamente
+      const inativosResponse = await tomadoresService.findAll({
+        empresaId: company.id,
+        ativo: false,
+        limit: 100,
+      });
+      
+      // Combinar tomadores ativos e inativos (removendo duplicatas)
+      const ativos = response.items || [];
+      const inativos = inativosResponse.items || [];
+      const todosMap = new Map<string, Tomador>();
+      ativos.forEach(t => todosMap.set(t.id, t));
+      inativos.forEach(t => todosMap.set(t.id, t));
+      
+      setAllTomadores(Array.from(todosMap.values()));
+    } catch (err: any) {
+      console.error('Erro ao carregar tomadores:', err);
+      setError(err.response?.data?.message || 'Erro ao carregar tomadores');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [company?.id]);
 
-  const filteredTomadores = mockTomadores.filter(tomador => {
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch =
-      tomador.razaoSocial?.toLowerCase().includes(searchLower) ||
-      tomador.nome?.toLowerCase().includes(searchLower) ||
-      tomador.nomeFantasia?.toLowerCase().includes(searchLower) ||
-      tomador.documento.includes(searchTerm.replace(/\D/g, '')) ||
-      tomador.email.toLowerCase().includes(searchLower);
+  useEffect(() => {
+    fetchTomadores();
+  }, [fetchTomadores]);
+
+  // Calcular estatísticas baseado nos dados locais
+  const stats = useMemo(() => {
+    const ativos = allTomadores.filter(t => t.ativo !== false);
+    return {
+      todos: ativos.length,
+      pj: ativos.filter(t => t.tipo === 'pj').length,
+      pf: ativos.filter(t => t.tipo === 'pf').length,
+      inativos: allTomadores.filter(t => t.ativo === false).length,
+    };
+  }, [allTomadores]);
+
+  // Filtrar tomadores baseado na aba ativa e busca
+  const filteredTomadores = useMemo(() => {
+    let filtered = allTomadores;
     
-    let matchesTab = true;
-    if (activeTab === 1) matchesTab = tomador.tipo === 'pj';
-    if (activeTab === 2) matchesTab = tomador.tipo === 'pf';
-    if (activeTab === 3) matchesTab = !tomador.ativo;
+    // Filtrar por aba
+    switch (activeTab) {
+      case 1: // PJ
+        filtered = filtered.filter(t => t.tipo === 'pj' && t.ativo !== false);
+        break;
+      case 2: // PF
+        filtered = filtered.filter(t => t.tipo === 'pf' && t.ativo !== false);
+        break;
+      case 3: // Inativos
+        filtered = filtered.filter(t => t.ativo === false);
+        break;
+      default: // Todos (ativos)
+        filtered = filtered.filter(t => t.ativo !== false);
+    }
     
-    // Filtro por tags
-    const matchesTags = tagFilter.length === 0 || 
-      (tomador.tags && tagFilter.some(tag => tomador.tags?.includes(tag)));
+    // Filtrar por busca
+    if (searchTerm.trim()) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(t => 
+        (t.razaoSocial?.toLowerCase().includes(search)) ||
+        (t.nomeFantasia?.toLowerCase().includes(search)) ||
+        (t.nome?.toLowerCase().includes(search)) ||
+        (t.documento?.includes(search.replace(/\D/g, ''))) ||
+        (t.email?.toLowerCase().includes(search))
+      );
+    }
     
-    return matchesSearch && matchesTab && matchesTags;
-  });
+    // Filtrar por tags
+    if (tagFilter.length > 0) {
+      filtered = filtered.filter(t => 
+        t.tags && t.tags.some(tag => tagFilter.includes(tag))
+      );
+    }
+    
+    return filtered;
+  }, [allTomadores, activeTab, searchTerm, tagFilter]);
+
+  // Paginar dados filtrados
+  const paginatedTomadores = useMemo(() => {
+    const start = page * rowsPerPage;
+    return filteredTomadores.slice(start, start + rowsPerPage);
+  }, [filteredTomadores, page, rowsPerPage]);
+
+  useEffect(() => {
+    const maxPage = Math.max(0, Math.ceil(filteredTomadores.length / rowsPerPage) - 1);
+    if (page > maxPage) {
+      setPage(0);
+    }
+  }, [filteredTomadores.length, rowsPerPage, page]);
+
+  const tabs = [
+    { label: 'Todos', count: stats.todos },
+    { label: 'Pessoa Jurídica', count: stats.pj },
+    { label: 'Pessoa Física', count: stats.pf },
+    { label: 'Inativos', count: stats.inativos },
+  ];
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, tomador: Tomador) => {
     setAnchorEl(event.currentTarget);
@@ -283,11 +315,11 @@ const TomadoresPage: React.FC = () => {
 
   const handleMenuClose = () => {
     setAnchorEl(null);
-    setSelectedTomador(null);
   };
 
   const handleOpenDialog = (mode: 'create' | 'edit' | 'view', tomador?: Tomador) => {
     setDialogMode(mode);
+    setSelectedTomador(tomador || null);
     if (tomador) {
       setFormData({
         tipo: tomador.tipo,
@@ -304,9 +336,11 @@ const TomadoresPage: React.FC = () => {
         bairro: tomador.endereco.bairro,
         cidade: tomador.endereco.cidade,
         uf: tomador.endereco.uf,
+        codigoMunicipio: tomador.endereco.codigoMunicipio || '',
         email: tomador.email,
         telefone: tomador.telefone || '',
       });
+      setSelectedTags(tomador.tags || []);
     } else {
       setFormData({
         tipo: 'pj',
@@ -323,43 +357,80 @@ const TomadoresPage: React.FC = () => {
         bairro: '',
         cidade: '',
         uf: '',
+        codigoMunicipio: '',
         email: '',
         telefone: '',
       });
+      setSelectedTags([]);
     }
+    setFormError(null);
     setDialogOpen(true);
-    handleMenuClose();
+    setAnchorEl(null);
   };
 
   const handleTipoChange = (event: SelectChangeEvent) => {
     setFormData({ ...formData, tipo: event.target.value as 'pj' | 'pf' });
   };
 
-  const handleBuscarCEP = async () => {
-    const cep = formData.cep.replace(/\D/g, '');
+  const handleBuscarCEP = async (cepValue?: string) => {
+    const cep = (cepValue || formData.cep).replace(/\D/g, '');
     if (cep.length !== 8) {
-      alert('CEP deve ter 8 dígitos');
+      if (!cepValue) setFormError('CEP deve ter 8 dígitos');
       return;
     }
 
     setCepLoading(true);
+    setFormError(null);
     try {
       const endereco = await cepService.consultar(cep);
       if (endereco) {
         setFormData(prev => ({
           ...prev,
+          cep: endereco.cep,
           logradouro: endereco.logradouro,
           bairro: endereco.bairro,
           cidade: endereco.cidade,
           uf: endereco.uf,
+          codigoMunicipio: endereco.codigoMunicipio,
         }));
       } else {
-        alert('CEP não encontrado');
+        setFormError('CEP não encontrado');
+        // Limpar campos de endereço se CEP inválido
+        setFormData(prev => ({
+          ...prev,
+          logradouro: '',
+          bairro: '',
+          cidade: '',
+          uf: '',
+          codigoMunicipio: '',
+        }));
       }
     } catch {
-      alert('Erro ao consultar CEP');
+      setFormError('Erro ao consultar CEP');
     } finally {
       setCepLoading(false);
+    }
+  };
+
+  // Buscar CEP automaticamente quando tiver 8 dígitos
+  const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFormData({ ...formData, cep: value });
+    
+    const cepLimpo = value.replace(/\D/g, '');
+    if (cepLimpo.length === 8) {
+      handleBuscarCEP(cepLimpo);
+    } else if (cepLimpo.length < 8) {
+      // Limpar campos se CEP incompleto
+      setFormData(prev => ({
+        ...prev,
+        cep: value,
+        logradouro: '',
+        bairro: '',
+        cidade: '',
+        uf: '',
+        codigoMunicipio: '',
+      }));
     }
   };
 
@@ -389,9 +460,6 @@ const TomadoresPage: React.FC = () => {
           >
             Importar CNPJ
           </Button>
-          <Button variant="outlined" startIcon={<FilterList />}>
-            Filtrar
-          </Button>
           <Button
             variant="contained"
             startIcon={<Add />}
@@ -402,13 +470,20 @@ const TomadoresPage: React.FC = () => {
         </Box>
       </Box>
 
+      {/* Error Alert */}
+      {error && (
+        <Box sx={{ mb: 3 }}>
+          <Typography color="error">{error}</Typography>
+        </Box>
+      )}
+
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                {mockTomadores.length}
+                {stats.todos}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Total de Tomadores
@@ -420,7 +495,7 @@ const TomadoresPage: React.FC = () => {
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography variant="h4" sx={{ fontWeight: 700, color: 'info.main' }}>
-                {mockTomadores.filter(t => t.tipo === 'pj').length}
+                {stats.pj}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Pessoa Jurídica
@@ -432,7 +507,7 @@ const TomadoresPage: React.FC = () => {
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography variant="h4" sx={{ fontWeight: 700, color: 'secondary.main' }}>
-                {mockTomadores.filter(t => t.tipo === 'pf').length}
+                {stats.pf}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Pessoa Física
@@ -444,7 +519,7 @@ const TomadoresPage: React.FC = () => {
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography variant="h4" sx={{ fontWeight: 700, color: 'success.main' }}>
-                {formatCurrency(mockTomadores.reduce((sum, t) => sum + t.faturamentoTotal, 0))}
+                {formatCurrency(allTomadores.reduce((sum, t) => sum + (t.faturamentoTotal || 0), 0))}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Faturamento Total
@@ -458,7 +533,7 @@ const TomadoresPage: React.FC = () => {
       <Card>
         {/* Tabs */}
         <Box sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'grey.50' }}>
-          <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)}>
+          <Tabs value={activeTab} onChange={(_, v) => { setActiveTab(v); setPage(0); }}>
             {tabs.map((tab, index) => (
               <Tab
                 key={index}
@@ -489,7 +564,10 @@ const TomadoresPage: React.FC = () => {
               placeholder="Buscar por nome, CNPJ/CPF, email..."
               size="small"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(0);
+              }}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -504,7 +582,10 @@ const TomadoresPage: React.FC = () => {
               size="small"
               options={tagsDisponiveis.map(t => t.label)}
               value={tagFilter}
-              onChange={(_, newValue) => setTagFilter(newValue)}
+              onChange={(_, newValue) => {
+                setTagFilter(newValue);
+                setPage(0);
+              }}
               renderInput={(params) => (
                 <TextField
                   {...params}
@@ -555,23 +636,46 @@ const TomadoresPage: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredTomadores
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((tomador) => (
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                      <CircularProgress size={32} />
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        Carregando tomadores...
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : paginatedTomadores.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Nenhum tomador encontrado
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : paginatedTomadores.map((tomador) => (
                     <TableRow key={tomador.id} hover sx={!tomador.ativo ? { opacity: 0.6 } : undefined}>
                       <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 220, maxWidth: 320 }}>
                           <Avatar sx={{ bgcolor: tomador.tipo === 'pj' ? 'primary.main' : 'secondary.main' }}>
                             {tomador.tipo === 'pj' ? <Business /> : <Person />}
                           </Avatar>
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              {tomador.razaoSocial || tomador.nome}
-                            </Typography>
-                            {tomador.nomeFantasia && (
-                              <Typography variant="caption" color="text.secondary">
-                                {tomador.nomeFantasia}
+                          <Box sx={{ minWidth: 0 }}>
+                            <Tooltip title={tomador.razaoSocial || tomador.nome} disableInteractive>
+                              <Typography
+                                variant="body2"
+                                sx={{ fontWeight: 600, maxWidth: 240 }}
+                                noWrap
+                              >
+                                {tomador.razaoSocial || tomador.nome}
                               </Typography>
+                            </Tooltip>
+                            {tomador.nomeFantasia && (
+                              <Tooltip title={tomador.nomeFantasia} disableInteractive>
+                                <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 240 }}>
+                                  {tomador.nomeFantasia}
+                                </Typography>
+                              </Tooltip>
                             )}
                           </Box>
                         </Box>
@@ -647,7 +751,8 @@ const TomadoresPage: React.FC = () => {
                         </IconButton>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ))
+                }
               </TableBody>
             </Table>
           </TableContainer>
@@ -688,12 +793,23 @@ const TomadoresPage: React.FC = () => {
           <ListItemIcon><History fontSize="small" /></ListItemIcon>
           Ver Histórico
         </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
+        <MenuItem onClick={() => {
+          if (selectedTomador) {
+            navigate(`/notas/emitir?tomadorId=${selectedTomador.id}`);
+          }
+          handleMenuClose();
+        }}>
           <ListItemIcon><Receipt fontSize="small" /></ListItemIcon>
           Emitir Nota
         </MenuItem>
         <Divider />
-        <MenuItem onClick={handleMenuClose}>
+        <MenuItem onClick={() => {
+          if (selectedTomador) {
+            navigator.clipboard.writeText(selectedTomador.documento);
+            setSnackbar({ open: true, message: 'Documento copiado para a área de transferência!', severity: 'success' });
+          }
+          handleMenuClose();
+        }}>
           <ListItemIcon><ContentCopy fontSize="small" /></ListItemIcon>
           Copiar CNPJ/CPF
         </MenuItem>
@@ -702,7 +818,15 @@ const TomadoresPage: React.FC = () => {
           Exportar dados
         </MenuItem>
         <Divider />
-        <MenuItem onClick={handleMenuClose} sx={{ color: 'error.main' }}>
+        <MenuItem 
+          onClick={() => {
+            if (!selectedTomador) return;
+            setTomadorToDelete(selectedTomador);
+            setConfirmDialogOpen(true);
+            handleMenuClose();
+          }} 
+          sx={{ color: 'error.main' }}
+        >
           <ListItemIcon><Delete fontSize="small" sx={{ color: 'error.main' }} /></ListItemIcon>
           Excluir
         </MenuItem>
@@ -723,6 +847,11 @@ const TomadoresPage: React.FC = () => {
         </DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 2 }}>
+            {formError && (
+              <Box sx={{ mb: 2 }}>
+                <Typography color="error">{formError}</Typography>
+              </Box>
+            )}
             <Grid container spacing={3}>
               {/* Tipo de Pessoa */}
               <Grid item xs={12} md={4}>
@@ -822,23 +951,32 @@ const TomadoresPage: React.FC = () => {
               <Grid item xs={12} md={3}>
                 <TextField
                   fullWidth
-                  label="CEP"
+                  label="CEP *"
                   value={formData.cep}
-                  onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
+                  onChange={handleCepChange}
                   disabled={dialogMode === 'view'}
                   placeholder="00000-000"
+                  helperText={dialogMode !== 'view' ? 'Digite o CEP para preencher o endereço' : ''}
                   InputProps={{
                     endAdornment: dialogMode !== 'view' && (
                       <InputAdornment position="end">
-                        <Tooltip title="Buscar endereço pelo CEP">
-                          <IconButton 
-                            size="small" 
-                            onClick={handleBuscarCEP}
-                            disabled={cepLoading}
-                          >
-                            {cepLoading ? <CircularProgress size={20} /> : <Search />}
-                          </IconButton>
-                        </Tooltip>
+                        {cepLoading ? (
+                          <CircularProgress size={20} />
+                        ) : formData.codigoMunicipio ? (
+                          <Tooltip title="CEP validado">
+                            <Chip label="OK" size="small" color="success" />
+                          </Tooltip>
+                        ) : (
+                          <Tooltip title="Buscar endereço pelo CEP">
+                            <IconButton 
+                              size="small" 
+                              onClick={() => handleBuscarCEP()}
+                              disabled={cepLoading}
+                            >
+                              <Search />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                       </InputAdornment>
                     ),
                   }}
@@ -851,12 +989,14 @@ const TomadoresPage: React.FC = () => {
                   value={formData.logradouro}
                   onChange={(e) => setFormData({ ...formData, logradouro: e.target.value })}
                   disabled={dialogMode === 'view'}
+                  InputProps={{ readOnly: dialogMode !== 'view' }}
+                  sx={{ '& .MuiInputBase-input': { bgcolor: 'grey.50' } }}
                 />
               </Grid>
               <Grid item xs={12} md={2}>
                 <TextField
                   fullWidth
-                  label="Número"
+                  label="Número *"
                   value={formData.numero}
                   onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
                   disabled={dialogMode === 'view'}
@@ -878,6 +1018,8 @@ const TomadoresPage: React.FC = () => {
                   value={formData.bairro}
                   onChange={(e) => setFormData({ ...formData, bairro: e.target.value })}
                   disabled={dialogMode === 'view'}
+                  InputProps={{ readOnly: dialogMode !== 'view' }}
+                  sx={{ '& .MuiInputBase-input': { bgcolor: 'grey.50' } }}
                 />
               </Grid>
               <Grid item xs={12} md={3}>
@@ -885,8 +1027,9 @@ const TomadoresPage: React.FC = () => {
                   fullWidth
                   label="Cidade"
                   value={formData.cidade}
-                  onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
                   disabled={dialogMode === 'view'}
+                  InputProps={{ readOnly: true }}
+                  sx={{ '& .MuiInputBase-input': { bgcolor: 'grey.100' } }}
                 />
               </Grid>
               <Grid item xs={12} md={2}>
@@ -894,8 +1037,9 @@ const TomadoresPage: React.FC = () => {
                   fullWidth
                   label="UF"
                   value={formData.uf}
-                  onChange={(e) => setFormData({ ...formData, uf: e.target.value })}
                   disabled={dialogMode === 'view'}
+                  InputProps={{ readOnly: true }}
+                  sx={{ '& .MuiInputBase-input': { bgcolor: 'grey.100' } }}
                 />
               </Grid>
 
@@ -973,7 +1117,109 @@ const TomadoresPage: React.FC = () => {
             {dialogMode === 'view' ? 'Fechar' : 'Cancelar'}
           </Button>
           {dialogMode !== 'view' && (
-            <Button variant="contained">
+            <Button 
+              variant="contained"
+              disabled={!company?.id}
+              onClick={async () => {
+                if (!company?.id) return;
+                setFormError(null);
+
+                const email = formData.email.trim();
+                const uf = formData.uf.trim().toUpperCase();
+                const cidade = formData.cidade.trim();
+                const tagsLimpos = selectedTags.map(t => t.trim()).filter(Boolean);
+
+                // Validar documento (CPF ou CNPJ)
+                const docLimpo = formData.documento.replace(/\D/g, '');
+                if (formData.tipo === 'pf') {
+                  if (!validarCPF(docLimpo)) {
+                    setFormError('CPF inválido. Verifique os dígitos informados.');
+                    return;
+                  }
+                  // Validar nome para PF
+                  if (!formData.nome.trim()) {
+                    setFormError('Nome completo é obrigatório para pessoa física');
+                    return;
+                  }
+                } else {
+                  if (!validarCNPJ(docLimpo)) {
+                    setFormError('CNPJ inválido. Verifique os dígitos informados.');
+                    return;
+                  }
+                  // Validar razão social para PJ
+                  if (!formData.razaoSocial.trim()) {
+                    setFormError('Razão social é obrigatória para pessoa jurídica');
+                    return;
+                  }
+                }
+
+                // Validar CEP obrigatório
+                const cepLimpo = formData.cep.replace(/\D/g, '');
+                if (!cepLimpo || cepLimpo.length !== 8) {
+                  setFormError('CEP é obrigatório e deve ter 8 dígitos');
+                  return;
+                }
+
+                // Validar código do município (preenchido pela busca de CEP)
+                if (!formData.codigoMunicipio) {
+                  setFormError('Endereço não validado. Por favor, aguarde a busca automática do CEP ou clique no botão de busca.');
+                  return;
+                }
+
+                // Validar número obrigatório
+                if (!formData.numero.trim()) {
+                  setFormError('Número do endereço é obrigatório');
+                  return;
+                }
+
+                if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+                  setFormError('E-mail inválido');
+                  return;
+                }
+
+                const codigoMunicipio = formData.codigoMunicipio;
+                try {
+                  // Para PF: enviar apenas 'nome', para PJ: enviar apenas 'razaoSocial'
+                  // Isso evita conflito no mapeamento do backend
+                  const tomadorData = {
+                    tipo: formData.tipo,
+                    documento: formData.documento.replace(/\D/g, ''),
+                    // Para PF, nome vai como razaoSocial no backend
+                    razaoSocial: formData.tipo === 'pf' ? formData.nome : (formData.razaoSocial || undefined),
+                    nomeFantasia: formData.tipo === 'pj' ? (formData.nomeFantasia || undefined) : undefined,
+                    nome: formData.tipo === 'pf' ? formData.nome : undefined,
+                    inscricaoMunicipal: formData.inscricaoMunicipal || undefined,
+                    inscricaoEstadual: formData.inscricaoEstadual || undefined,
+                    endereco: {
+                      cep: formData.cep.replace(/\D/g, ''),
+                      logradouro: formData.logradouro,
+                      numero: formData.numero,
+                      complemento: formData.complemento || undefined,
+                      bairro: formData.bairro,
+                      cidade,
+                      uf,
+                      codigoMunicipio: codigoMunicipio || '',
+                    },
+                    email: email || undefined,
+                    telefone: formData.telefone || undefined,
+                    tags: tagsLimpos.length > 0 ? tagsLimpos : undefined,
+                    empresaId: company.id,
+                  };
+                  
+                  if (dialogMode === 'create') {
+                    await tomadoresService.create(tomadorData);
+                  } else if (dialogMode === 'edit' && selectedTomador) {
+                    await tomadoresService.update(selectedTomador.id, tomadorData);
+                  }
+                  
+                  setDialogOpen(false);
+                  fetchTomadores();
+                } catch (err: any) {
+                  console.error('Erro ao salvar tomador:', err);
+                  setFormError(err.response?.data?.message || 'Erro ao salvar tomador');
+                }
+              }}
+            >
               {dialogMode === 'create' ? 'Cadastrar' : 'Salvar'}
             </Button>
           )}
@@ -1010,6 +1256,7 @@ const TomadoresPage: React.FC = () => {
             bairro: dados.endereco?.bairro || '',
             cidade: dados.endereco?.cidade || '',
             uf: dados.endereco?.uf || '',
+            codigoMunicipio: dados.endereco?.codigoMunicipio || '',
             email: dados.email || '',
             telefone: dados.telefone || '',
           });
@@ -1017,6 +1264,58 @@ const TomadoresPage: React.FC = () => {
           setDialogOpen(true);
         }}
       />
+
+      {/* Dialog de Confirmação de Exclusão */}
+      <ConfirmDialog
+        open={confirmDialogOpen}
+        onClose={() => {
+          setConfirmDialogOpen(false);
+          setTomadorToDelete(null);
+        }}
+        onConfirm={async () => {
+          if (!tomadorToDelete) return;
+          setDeleteLoading(true);
+          try {
+            await tomadoresService.remove(tomadorToDelete.id);
+            setSnackbar({ open: true, message: 'Tomador excluído com sucesso!', severity: 'success' });
+            fetchTomadores();
+          } catch (err: any) {
+            console.error('Erro ao excluir tomador:', err);
+            setSnackbar({ 
+              open: true, 
+              message: err.response?.data?.message || 'Erro ao excluir tomador', 
+              severity: 'error' 
+            });
+          } finally {
+            setDeleteLoading(false);
+            setConfirmDialogOpen(false);
+            setTomadorToDelete(null);
+          }
+        }}
+        title="Excluir Tomador"
+        message={`Tem certeza que deseja excluir o tomador "${tomadorToDelete?.razaoSocial || tomadorToDelete?.nome}"? Esta ação não pode ser desfeita.`}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        type="danger"
+        loading={deleteLoading}
+      />
+
+      {/* Snackbar para feedback */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

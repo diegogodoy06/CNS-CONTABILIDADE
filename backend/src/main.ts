@@ -15,9 +15,12 @@ async function bootstrap() {
   // Segurança
   app.use(helmet());
 
-  // CORS
+  // CORS - suporta múltiplas origens separadas por vírgula
+  const corsOrigin = configService.get<string>('CORS_ORIGIN', 'http://localhost:5173');
+  const origins = corsOrigin.split(',').map(origin => origin.trim());
+  
   app.enableCors({
-    origin: configService.get<string>('CORS_ORIGIN', 'http://localhost:5173'),
+    origin: origins.length === 1 ? origins[0] : origins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
   });

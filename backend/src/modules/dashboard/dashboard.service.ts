@@ -83,15 +83,15 @@ export class DashboardService {
     });
 
     const faturamentoTotal = notas.reduce(
-      (acc, n) => acc + Number(n.valorServico),
+      (acc: number, n: any) => acc + Number(n.valorServico),
       0,
     );
     const impostosTotais = notas.reduce(
-      (acc, n) => acc + Number(n.valorIss),
+      (acc: number, n: any) => acc + Number(n.valorIss),
       0,
     );
     const liquidoTotal = notas.reduce(
-      (acc, n) => acc + Number(n.valorLiquido),
+      (acc: number, n: any) => acc + Number(n.valorLiquido),
       0,
     );
 
@@ -317,7 +317,7 @@ export class DashboardService {
     // Busca nomes das empresas
     const empresas = await this.prisma.empresa.findMany({
       where: {
-        id: { in: ranking.map((r) => r.empresaId) },
+        id: { in: ranking.map((r: any) => r.empresaId) },
       },
       select: {
         id: true,
@@ -326,9 +326,9 @@ export class DashboardService {
       },
     });
 
-    const empresasMap = new Map(empresas.map((e) => [e.id, e]));
+    const empresasMap = new Map<string, any>(empresas.map((e: any) => [e.id, e]));
 
-    return ranking.map((r, index) => {
+    return ranking.map((r: any, index: number) => {
       const empresa = empresasMap.get(r.empresaId);
       return {
         posicao: index + 1,
@@ -451,7 +451,7 @@ export class DashboardService {
       const empresas = await this.prisma.empresa.findMany({
         select: { id: true },
       });
-      return empresas.map((e) => e.id);
+      return empresas.map((e: any) => e.id);
     }
 
     if (user.tipo === TipoUsuario.CLIENTE) {
@@ -459,7 +459,7 @@ export class DashboardService {
         where: { usuarioId: user.id, ativo: true },
         select: { empresaId: true },
       });
-      return vinculos.map((v) => v.empresaId);
+      return vinculos.map((v: any) => v.empresaId);
     }
 
     const colaborador = await this.prisma.colaboradorEscritorio.findUnique({
@@ -471,7 +471,7 @@ export class DashboardService {
         where: { escritorioId: colaborador.escritorioId },
         select: { id: true },
       });
-      return empresas.map((e) => e.id);
+      return empresas.map((e: any) => e.id);
     }
 
     return [];

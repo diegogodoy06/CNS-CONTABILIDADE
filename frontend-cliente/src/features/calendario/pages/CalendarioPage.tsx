@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -16,9 +16,13 @@ import {
   FormControlLabel,
   Switch,
   Paper,
+  CircularProgress,
 } from '@mui/material';
 import { Download, FilterList, Close } from '@mui/icons-material';
 import CalendarioObrigacoes from '../../../components/shared/CalendarioObrigacoes';
+import dashboardService from '../../../services/dashboardService';
+import { useAppSelector } from '../../../store/hooks';
+import type { RootState } from '../../../store';
 
 const tiposGuia = [
   { id: 'imposto', label: 'Impostos', color: '#0066CC' },
@@ -28,17 +32,42 @@ const tiposGuia = [
 ];
 
 const CalendarioPage: React.FC = () => {
+  const { company } = useAppSelector((state: RootState) => state.auth);
   const [filterAnchorEl, setFilterAnchorEl] = useState<null | HTMLElement>(null);
   const [selectedTipos, setSelectedTipos] = useState<string[]>(tiposGuia.map(t => t.id));
   const [mostrarPagos, setMostrarPagos] = useState(true);
   const [mostrarPendentes, setMostrarPendentes] = useState(true);
+  
+  // Estados para dados da API
+  const [resumoMes, setResumoMes] = useState({
+    total: 0,
+    pendentes: 0,
+    pagos: 0,
+    valorTotal: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
 
-  const resumoMes = {
-    total: 7,
-    pendentes: 5,
-    pagos: 2,
-    valorTotal: 4620.00,
-  };
+  const fetchResumo = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await dashboardService.getFinanceiro({ empresaId: company?.id });
+      const { guiasPorStatus, totalPendente } = response;
+      setResumoMes({
+        total: (guiasPorStatus?.pendentes || 0) + (guiasPorStatus?.pagas || 0) + (guiasPorStatus?.vencidas || 0),
+        pendentes: (guiasPorStatus?.pendentes || 0) + (guiasPorStatus?.vencidas || 0),
+        pagos: guiasPorStatus?.pagas || 0,
+        valorTotal: totalPendente || 0,
+      });
+    } catch (err) {
+      console.error('Erro ao carregar resumo:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [company?.id]);
+
+  useEffect(() => {
+    fetchResumo();
+  }, [fetchResumo]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -230,9 +259,13 @@ const CalendarioPage: React.FC = () => {
         <Grid item xs={6} sm={3}>
           <Card>
             <CardContent sx={{ textAlign: 'center', py: 2 }}>
-              <Typography variant="h4" fontWeight={700} color="primary.main">
-                {resumoMes.total}
-              </Typography>
+              {isLoading ? (
+                <CircularProgress size={24} />
+              ) : (
+                <Typography variant="h4" fontWeight={700} color="primary.main">
+                  {resumoMes.total}
+                </Typography>
+              )}
               <Typography variant="body2" color="text.secondary">
                 Total de obrigações
               </Typography>
@@ -242,9 +275,13 @@ const CalendarioPage: React.FC = () => {
         <Grid item xs={6} sm={3}>
           <Card>
             <CardContent sx={{ textAlign: 'center', py: 2 }}>
-              <Typography variant="h4" fontWeight={700} color="warning.main">
-                {resumoMes.pendentes}
-              </Typography>
+              {isLoading ? (
+                <CircularProgress size={24} />
+              ) : (
+                <Typography variant="h4" fontWeight={700} color="warning.main">
+                  {resumoMes.pendentes}
+                </Typography>
+              )}
               <Typography variant="body2" color="text.secondary">
                 Pendentes
               </Typography>
@@ -254,9 +291,13 @@ const CalendarioPage: React.FC = () => {
         <Grid item xs={6} sm={3}>
           <Card>
             <CardContent sx={{ textAlign: 'center', py: 2 }}>
-              <Typography variant="h4" fontWeight={700} color="success.main">
-                {resumoMes.pagos}
-              </Typography>
+              {isLoading ? (
+                <CircularProgress size={24} />
+              ) : (
+                <Typography variant="h4" fontWeight={700} color="success.main">
+                  {resumoMes.pagos}
+                </Typography>
+              )}
               <Typography variant="body2" color="text.secondary">
                 Pagos
               </Typography>
@@ -266,9 +307,13 @@ const CalendarioPage: React.FC = () => {
         <Grid item xs={6} sm={3}>
           <Card>
             <CardContent sx={{ textAlign: 'center', py: 2 }}>
-              <Typography variant="h4" fontWeight={700}>
-                {formatCurrency(resumoMes.valorTotal)}
-              </Typography>
+              {isLoading ? (
+                <CircularProgress size={24} />
+              ) : (
+                <Typography variant="h4" fontWeight={700}>
+                  {formatCurrency(resumoMes.valorTotal)}
+                </Typography>
+              )}
               <Typography variant="body2" color="text.secondary">
                 Valor total
               </Typography>
@@ -278,7 +323,7 @@ const CalendarioPage: React.FC = () => {
       </Grid>
 
       {/* Calendário */}
-      <CalendarioObrigacoes />
+      <CalendarioObrigacoes empresaId={company?.id} />
     </Box>
   );
 };

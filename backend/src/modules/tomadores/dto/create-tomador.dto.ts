@@ -7,6 +7,7 @@ import {
   Length,
   IsUUID,
   IsInt,
+  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TipoPessoa } from '@prisma/client';
@@ -157,4 +158,14 @@ export class CreateTomadorDto {
   @IsOptional()
   @IsString()
   observacoes?: string;
+
+  @ApiPropertyOptional({
+    description: 'Tags do tomador',
+    type: [String],
+    example: ['VIP', 'Recorrente'],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
 }
